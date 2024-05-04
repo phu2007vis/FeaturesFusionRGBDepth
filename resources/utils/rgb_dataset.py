@@ -5,6 +5,7 @@ import cv2
 import numpy as np
 import torch
 import math
+from resources.utils import *
 
 
 DEFAULT_MAP = """A1 => nha_lau
@@ -284,7 +285,7 @@ class Generator(torch.utils.data.IterableDataset ):
         self.classes = classes
         self.end = len(data_paths['class'])
         self.cache_folder = cache_folder
-
+        self.temperal_augument  = TemperalAugument(self.n_frames,mode=mode)
     def __iter__(self):
          worker_info = torch.utils.data.get_worker_info()
          if worker_info is None:  # single-process data loading, return the full iterator
@@ -306,6 +307,8 @@ class Generator(torch.utils.data.IterableDataset ):
         
         for i in range(start,end):
             y = labels[i]
-            X = torch.tensor(np.load(rgb_batch[i])[:self.n_frames],dtype=torch.float).permute(3,0,1,2)
+            X = torch.tensor(np.load(rgb_batch[i]),dtype=torch.float)
+            X = self.temperal_augument.get_augmented_data(X).permute(3,0,1,2)
+            print(X.shape)
             yield X, y
-        exit()
+

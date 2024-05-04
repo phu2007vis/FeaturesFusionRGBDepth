@@ -74,7 +74,7 @@ def run(init_lr=0.1, max_steps=200000, device = "cuda", root="/work/21010294/Dep
     val_ds = dataset.get_generator(val_filter,mode = "valid")
     val_dl = torch.utils.data.DataLoader(val_ds, batch_size=batch_size,  num_workers=0, pin_memory=True)
 
-    test_ds = dataset.get_generator(test_filter,mode = "test")
+    test_ds = dataset.get_generator(test_filter,mode = "valid")
     test_dl = torch.utils.data.DataLoader(test_ds, batch_size=batch_size,  num_workers=0, pin_memory=True)
 
     dataloaders = {'train': train_dl, 'val': val_dl, 'test': test_dl}
