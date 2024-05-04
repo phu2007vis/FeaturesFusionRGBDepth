@@ -8,7 +8,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torch.autograd import Variable
 from tqdm import tqdm
-import resources.i3d.DSL.rgb_dataset as dsl
+import resources.utils.rgb_dataset as dsl
 import random
 import numpy as np
 import datetime

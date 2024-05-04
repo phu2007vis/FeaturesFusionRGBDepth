@@ -1,2 +1,5 @@
 my_project.egg-info/*
 logs/*
+results/*
+resources/i3d/DSL/__pycache__/*
+resources/utils/__pycache__/*

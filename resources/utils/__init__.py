@@ -44,6 +44,5 @@ def get_augmented_data(self, data):
     return self.augment_data(data, speed)
     
 
-data = np.load(r"D:\phuoc_sign\dataset\raw_data_set_1\ban_ghe_sofa\20240107_153559_sub_0.npy")
-import pdb;pdb.set_trace()
+
 
