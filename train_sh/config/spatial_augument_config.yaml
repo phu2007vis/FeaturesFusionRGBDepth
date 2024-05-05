@@ -1,0 +1,11 @@
+augument: 
+  rotation: 13 #(-n to n)
+  color: 
+    - 0.2 #brightness
+    - 0.2 # contrast 
+    - 0.2 #saturation
+    - 0.2 #hue
+  h_flip: 0.5 #hori flip
+  translate:
+    max_x: 0.2
+    max_y: 0.2

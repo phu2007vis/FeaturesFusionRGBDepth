@@ -1,5 +1,9 @@
 import numpy as np
 import random
+import torchvision.transforms as transforms
+from PIL import Image
+import torch
+import cv2
 
 def split(a, n):
     k, m = divmod(len(a), n)
@@ -42,6 +46,40 @@ class TemperalAugument:
             return time_augument(cropped_data,self.out_frames,random=False)
         speed = np.random.choice([-2,-1, 0, 1, 2])
         return self.augment_data(data, speed)
-class SpatialAugument:
-    def __init__(self) -> None:
-        pass
+class SpatialTransform:
+    def __init__(self, output_size=(224, 224),augument = None):
+        self.output_size = output_size
+        self.augument = augument
+        self.transform_list = []
+        if self.augument is not None:
+            if self.augument.get('color') is not None:
+                self.transform_list.append(transforms.ColorJitter(*augument['color']))
+        self.transform_list.append(transforms.ToTensor())
+        self.transform = transforms.Compose(
+            self.transform_list
+        )
+    def reset(self):
+        if self.augument:
+            if self.augument.get("h_flip") is  not None:
+                self.h_flip = random.random() < self.augument.get("h_flip")
+            if self.augument.get("rotation") is not None:   
+                self.rotate_angle = random.uniform(-self.augument['rotation'],self.augument['rotation'])   
+    def image_augument(self,image:np.array):
+        if self.augument.get('gausian_noise') is not None:
+            noise = np.random.normal(self.augument['gausian_noise']['mean'] , self.augument['gausian_noise']['std'], image.shape)
+            image = np.clip(image + noise, 0, 255).astype(np.uint8)
+        image = Image.fromarray(image)
+        if self.h_flip:
+            image = image.transpose(Image.FLIP_LEFT_RIGHT)
+        if self.rotate_angle is not None:
+            image = image.rotate(self.rotate_angle)
+        return image
+    def transform_fn(self, image_nps):
+        self.reset()
+        image_PILs = []
+        for image_np in image_nps:
+                image = cv2.resize(image_np,self.output_size)
+                image_PIL = self.image_augument(image)
+                image_PIL = self.transform(image_PIL)
+                image_PILs.append(image_PIL)
+        return torch.stack(image_PILs)

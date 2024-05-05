@@ -3,3 +3,4 @@ logs/*
 results/*
 resources/*/__pycache__/*
 train_sh/__pycache__/*
+visualize/

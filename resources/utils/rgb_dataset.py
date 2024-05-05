@@ -266,14 +266,31 @@ class DSL:
         return self.classes
     def get_persons(self):
         return self.persons
-    def get_generator(self,filtered_list=None,mode = None,randomize=True):
+    def get_generator(self,filtered_list=None,mode = None,randomize=True,spatial_augument = None):
         if filtered_list is None:
             filtered_list = self.filter(randomize=randomize)
-        return Generator(filtered_list,self.height,self.width,self.n_frames,self.batch_size,self.classes,mode = mode,cache_folder=self.cache_folder)
+        return Generator(filtered_list,
+                         self.height,
+                         self.width,
+                         self.n_frames,
+                         self.batch_size,
+                         self.classes,
+                         mode = mode,
+                         cache_folder=self.cache_folder,
+                         spatial_augument = spatial_augument)
         
 optical_flow = cv2.optflow.createOptFlow_DualTVL1()
 class Generator(torch.utils.data.IterableDataset ):
-    def __init__(self,data_paths,height,width,n_frames,batch_size,classes,mode,cache_folder) -> None:
+    def __init__(self,
+                 data_paths,
+                 height,
+                 width,
+                 n_frames,
+                 batch_size,
+                 classes,
+                 mode,
+                 cache_folder,
+                 spatial_augument = None) -> None:
         super(Generator).__init__()
         self.data_paths = data_paths
         self.height = height
@@ -286,6 +303,9 @@ class Generator(torch.utils.data.IterableDataset ):
         self.end = len(data_paths['class'])
         self.cache_folder = cache_folder
         self.temperal_augument  = TemperalAugument(self.n_frames,mode=mode)
+        self.spatial_transform = SpatialTransform(augument=spatial_augument)
+    def __len__(self):
+        return self.end
     def __iter__(self):
          worker_info = torch.utils.data.get_worker_info()
          if worker_info is None:  # single-process data loading, return the full iterator
@@ -307,8 +327,9 @@ class Generator(torch.utils.data.IterableDataset ):
         
         for i in range(start,end):
             y = labels[i]
-            X = torch.tensor(np.load(rgb_batch[i]),dtype=torch.float)
-            X = self.temperal_augument.get_augmented_data(X).permute(3,0,1,2)
-            print(X.shape)
-            yield X, y
+            X = np.load(rgb_batch[i])
+            X_spatial_augumented = self.spatial_transform.transform_fn(X)
+            X_temperal_augumented = self.temperal_augument.get_augmented_data(X_spatial_augumented).permute(1,0,2,3)
+            y = torch.nn.functional.one_hot(torch.tensor(y,dtype= torch.int64),len(self.classes)).float()
+            yield X_temperal_augumented, y
 

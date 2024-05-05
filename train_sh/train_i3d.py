@@ -14,6 +14,7 @@ import numpy as np
 import datetime
 from resources.i3d.pytorch_i3d import InceptionI3d
 import eval as ev
+import yaml
 os.makedirs('logs',exist_ok=True)
 import logging.handlers
 
@@ -40,7 +41,7 @@ def handle_exception(exc_type, exc_value, exc_traceback):
 sys.excepthook = handle_exception
 
 def run(init_lr=0.1, max_steps=200000, device = "cuda", root="/work/21010294/DepthData/OutputSplitAbsoluteVer2/", batch_size=8,
-        name='i3d-rgb', n_frames=200, elog=None,seed=42, cache=None):
+        name='i3d-rgb', n_frames=200, elog=None,seed=42, cache=None,num_workers = 8):
     loss_fn = nn.CrossEntropyLoss()
     random.seed(seed)
     HEIGHT = 224
@@ -66,18 +67,23 @@ def run(init_lr=0.1, max_steps=200000, device = "cuda", root="/work/21010294/Dep
     print(f"Validation set size: {len(val_filter['class'])}")
     print(f"Test set size: {len(test_filter['class'])}")
     
-
-
-    train_ds = dataset.get_generator(train_filter,mode = "train")
-    train_dl = torch.utils.data.DataLoader(train_ds, batch_size=batch_size,  num_workers=2, pin_memory=True)
+    with open(args.a_config,'r') as f:
+        spatial_augument = yaml.safe_load(f).get("augument",None)
+        
+    train_ds = dataset.get_generator(train_filter,mode = "train",spatial_augument = spatial_augument)
+    train_dl = torch.utils.data.DataLoader(train_ds, batch_size=batch_size,  num_workers=num_workers, pin_memory=True)
 
     val_ds = dataset.get_generator(val_filter,mode = "valid")
-    val_dl = torch.utils.data.DataLoader(val_ds, batch_size=batch_size,  num_workers=0, pin_memory=True)
+    val_dl = torch.utils.data.DataLoader(val_ds, batch_size=batch_size,  num_workers=num_workers, pin_memory=True)
 
     test_ds = dataset.get_generator(test_filter,mode = "valid")
-    test_dl = torch.utils.data.DataLoader(test_ds, batch_size=batch_size,  num_workers=0, pin_memory=True)
+    test_dl = torch.utils.data.DataLoader(test_ds, batch_size=batch_size,  num_workers=num_workers, pin_memory=True)
 
     dataloaders = {'train': train_dl, 'val': val_dl, 'test': test_dl}
+    
+    from resources.utils.visualize import visualize_rgb
+    visualize_rgb(train_dl,"visulize_rgb",0.1)
+    exit()
 
     num_classes = len(dataset.get_classes())
  
@@ -199,15 +205,15 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--device",type=str,default="cuda")
     parser.add_argument('-r', '--root', type=str, help='root directory of the dataset', default=r"/work/21013187/SignLanguageRGBD/ViSLver2/Processed")
-    parser.add_argument('-n', '--n_frames', type=int, help='n frame', default=10)
+    parser.add_argument('-n', '--n_frames', type=int, help='n frame', default= 72)
     parser.add_argument('-c', '--cache', type=str, help='cache directory', default=None)
     parser.add_argument('-s', '--seed', type=int, help='seed', default=42)
+    parser.add_argument('-a', '--a_config', type=str, help='spatial augumentation config', default="train_sh/config/spatial_augument_config.yaml")
     
     args = parser.parse_args()
     root = args.root
     n_frames = args.n_frames
-
-
+    
     name = f"i3d-train{n_frames}"
     elog = ev.Eval(run_name=name)
     run(device = args.device, root=root, name=name, n_frames=n_frames, elog=elog,seed=args.seed,cache=args.cache)
