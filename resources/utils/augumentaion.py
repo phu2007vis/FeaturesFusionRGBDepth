@@ -65,13 +65,13 @@ class SpatialTransform:
             if self.augument.get("rotation") is not None:   
                 self.rotate_angle = random.uniform(-self.augument['rotation'],self.augument['rotation'])   
     def image_augument(self,image:np.array):
-        if self.augument.get('gausian_noise') is not None:
+        if self.augument and self.augument.get('gausian_noise') is not None:
             noise = np.random.normal(self.augument['gausian_noise']['mean'] , self.augument['gausian_noise']['std'], image.shape)
             image = np.clip(image + noise, 0, 255).astype(np.uint8)
         image = Image.fromarray(image)
-        if self.h_flip:
+        if self.augument and self.h_flip:
             image = image.transpose(Image.FLIP_LEFT_RIGHT)
-        if self.rotate_angle is not None:
+        if self.augument and self.rotate_angle is not None:
             image = image.rotate(self.rotate_angle)
         return image
     def transform_fn(self, image_nps):
