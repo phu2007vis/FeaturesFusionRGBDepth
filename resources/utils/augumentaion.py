@@ -63,16 +63,19 @@ class SpatialTransform:
             if self.augument.get("h_flip") is  not None:
                 self.h_flip = random.random() < self.augument.get("h_flip")
             if self.augument.get("rotation") is not None:   
-                self.rotate_angle = random.uniform(-self.augument['rotation'],self.augument['rotation'])   
+                self.rotate_angle = random.uniform(-self.augument['rotation'],self.augument['rotation']) 
+                self.rotation_matrix = cv2.getRotationMatrix2D((self.output_size[0] / 2, self.output_size[1] / 2), self.rotate_angle, 1)  
     def image_augument(self,image:np.array):
         if self.augument and self.augument.get('gausian_noise') is not None:
             noise = np.random.normal(self.augument['gausian_noise']['mean'] , self.augument['gausian_noise']['std'], image.shape)
             image = np.clip(image + noise, 0, 255).astype(np.uint8)
-        image = Image.fromarray(image)
+        
         if self.augument and self.h_flip:
-            image = image.transpose(Image.FLIP_LEFT_RIGHT)
+            image = cv2.flip(image,1)
         if self.augument and self.rotate_angle is not None:
-            image = image.rotate(self.rotate_angle)
+            height, width = image.shape[:2]
+            image = cv2.warpAffine(image, self.rotation_matrix, (width, height))
+        image = Image.fromarray(image)
         return image
     def transform_fn(self, image_nps):
         self.reset()

@@ -40,7 +40,7 @@ def handle_exception(exc_type, exc_value, exc_traceback):
 
 sys.excepthook = handle_exception
 
-def run(init_lr=0.1, max_steps=200000, device = "cuda", root="/work/21010294/DepthData/OutputSplitAbsoluteVer2/", batch_size=8,
+def run(init_lr=0.001, max_steps=200000, device = "cuda", root="/work/21010294/DepthData/OutputSplitAbsoluteVer2/", batch_size=8,
         name='i3d-rgb', n_frames=200, elog=None,seed=42, cache=None,num_workers = 8):
     loss_fn = nn.CrossEntropyLoss()
     random.seed(seed)
@@ -68,7 +68,10 @@ def run(init_lr=0.1, max_steps=200000, device = "cuda", root="/work/21010294/Dep
     print(f"Test set size: {len(test_filter['class'])}")
     
     with open(args.a_config,'r') as f:
-        spatial_augument = yaml.safe_load(f).get("augument",None)
+        try:
+            spatial_augument = yaml.safe_load(f).get("augument")
+        except:
+            spatial_augument = None
         
     train_ds = dataset.get_generator(train_filter,mode = "train",spatial_augument = spatial_augument)
     train_dl = torch.utils.data.DataLoader(train_ds, batch_size=batch_size,  num_workers=num_workers, pin_memory=True)
@@ -81,9 +84,6 @@ def run(init_lr=0.1, max_steps=200000, device = "cuda", root="/work/21010294/Dep
 
     dataloaders = {'train': train_dl, 'val': val_dl, 'test': test_dl}
     
-    from resources.utils.visualize import visualize_rgb
-    visualize_rgb(train_dl,"visulize_rgb",0.1)
-    exit()
 
     num_classes = len(dataset.get_classes())
  
@@ -95,8 +95,7 @@ def run(init_lr=0.1, max_steps=200000, device = "cuda", root="/work/21010294/Dep
     model = nn.DataParallel(model)
     print(f"Train on {device}")
     lr = init_lr
-    optimizer = optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=0.0000001)
-    lr_sched = optim.lr_scheduler.MultiStepLR(optimizer, [300, 1000])
+    optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=0.0000001)
     checkpoints = []
     
     num_steps_per_update = 4 # accum gradient
@@ -128,10 +127,9 @@ def run(init_lr=0.1, max_steps=200000, device = "cuda", root="/work/21010294/Dep
                     inputs = inputs.to(device)
                     t = inputs.size(2)
                     labels = labels.to(device)
-                    import pdb;pdb.set_trace()
                     per_frame_logits = model(inputs)
                     # upsample to input size
-
+                    
                     loss = loss_fn(per_frame_logits,labels)/num_steps_per_update
                     tot_loss += loss.data.item()
                     loss.backward()
@@ -141,13 +139,15 @@ def run(init_lr=0.1, max_steps=200000, device = "cuda", root="/work/21010294/Dep
                         num_iter = 0
                         optimizer.step()
                         optimizer.zero_grad()
-                        lr_sched.step()
                         
                         if steps % 10 == 0:
-                            elog.add_loss_entry(f"{steps},{tot_loss}")
+                            info  =f"{steps} {tot_loss}" 
+                            pbar.set_description(info)
+                            elog.add_loss_entry(info)
                             # save model
                             torch.save(model.module.state_dict(), save_model+str(steps).zfill(6)+'.pt')
                             #add checkpoint
+                            
                             checkpoints.append(save_model+str(steps).zfill(6)+'.pt')
                             if len(checkpoints) > 3:
                                 os.remove(checkpoints.pop(0))
@@ -167,7 +167,7 @@ def run(init_lr=0.1, max_steps=200000, device = "cuda", root="/work/21010294/Dep
                     logit = nn.functional.softmax(per_frame_logits,dim = 1)
                     logit = logit.max(1)[1].cpu().numpy()
                     for i in range(len(logit)):
-                        logits.append([predicted[i], labels[i]])
+                        logits.append([logit[i], labels[i]])
                         
                 elog.evaluate(phase,steps,logits, dataset.get_classes())
                 model.train()

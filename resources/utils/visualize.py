@@ -46,10 +46,11 @@ def visualize_rgb(dataloader: torch.utils.data.DataLoader,
     num_visalize = int(percent_visualize*len(dataloader))
     print(f"Visualize total {num_visalize} samples")
     for x, labels in dataloader:
+        labels = labels.max(1)[1]
         b, c, t, w, h = x.shape
         x = x * mean_val + std_dev
         for i in range(b):
-            label = torch.softmax(labels[i],dim = -1).max(-1)[1]
+            label = labels[i]
             video = x[i].permute(1, 2, 3, 0)
             video_np = np.clip(np.array(video, dtype=np.uint8), 0, 255)
             count += 1
