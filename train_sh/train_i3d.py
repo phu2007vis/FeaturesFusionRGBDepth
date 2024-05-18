@@ -21,8 +21,6 @@ import logging.handlers
 log_filename = datetime.datetime.now().strftime("sc_%d_%m_%H_%M_%S.log")
 log_filepath = os.path.join("logs", log_filename)
 
-
-
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(threadName)-12.12s] [%(levelname)-5.5s]  %(message)s",
@@ -118,6 +116,7 @@ def run(init_lr=0.001, max_steps=200000, device = "cuda", root="/work/21010294/D
             optimizer.zero_grad()
 
             if phase == 'train':
+                continue
                 for data in dataloaders[phase]:
                     num_iter += 1
                     # get the inputs
@@ -158,18 +157,19 @@ def run(init_lr=0.001, max_steps=200000, device = "cuda", root="/work/21010294/D
                 print("Evaluating")
                 model.eval()
                 logits = []
-                for data in dataloaders[phase]:
-                    inputs, labels = data
-                    inputs = inputs.to(device)
-                    labels = (inputs.to(device).cpu().max(1)[1]).numpy()
-                    
-                    per_frame_logits = model(inputs)
-                    logit = nn.functional.softmax(per_frame_logits,dim = 1)
-                    logit = logit.max(1)[1].cpu().numpy()
-                    for i in range(len(logit)):
-                        logits.append([logit[i], labels[i]])
+                with torch.no_grad():
+                    for data in dataloaders[phase]:
+                        inputs, labels = data
+                        inputs = inputs.to(device)
+                        labels = (inputs.to(device).cpu().max(1)[1]).numpy()
                         
-                elog.evaluate(phase,steps,logits, dataset.get_classes())
+                        per_frame_logits = model(inputs)
+                        logit = nn.functional.softmax(per_frame_logits,dim = 1)
+                        logit = logit.max(1)[1].cpu().numpy()
+                        for i in range(len(logit)):
+                            logits.append([logit[i], labels[i]])
+                            
+                    elog.evaluate(phase,steps,logits, dataset.get_classes())
                 model.train()
     
     pbar.close()

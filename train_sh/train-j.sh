@@ -13,6 +13,7 @@
 
 squeue --me
 cd /work/21013187/SignLanguageRGBD/all_code
+module load python 
 python train_sh/train_i3d.py 
 
 
