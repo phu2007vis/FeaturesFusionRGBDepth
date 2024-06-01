@@ -168,7 +168,7 @@ def run(init_lr=0.001, max_steps=200000, device = "cuda", root="/work/21010294/D
                         logit = logit.max(1)[1].cpu().numpy()
                         for i in range(len(logit)):
                             logits.append([logit[i], labels[i]])
-                            
+                    import pdb;pdb.set_trace()
                     elog.evaluate(phase,steps,logits, dataset.get_classes())
                 model.train()
     
