@@ -13,6 +13,7 @@ from resources.i3d.pytorch_i3d import InceptionI3d
 import eval as ev
 import yaml
 import logging.handlers
+import matplotlib.pyplot as plt
 from resources.utils import *
 
 
@@ -37,7 +38,35 @@ def handle_exception(exc_type, exc_value, exc_traceback):
     # Call the default handler
     sys.__excepthook__(exc_type, exc_value, exc_traceback)
 sys.excepthook = handle_exception
-
+def evaluate(model,dataloader,loss_fn,steps,class_info,device = 'cuda',pbar = True):
+    model.eval()
+    logits = []
+    current_loss = 0
+    with torch.no_grad():
+        
+        data_iter = tqdm(dataloader,desc = "Evaluating") if pbar else dataloader
+     
+        for data in data_iter:
+            
+            inputs, labels = data
+            inputs = inputs.to(device)
+            labels = labels.to(device)
+            
+            per_frame_logits = model(inputs)
+            current_loss += loss_fn(per_frame_logits,labels).cpu().item()
+            logit = per_frame_logits.max(-1)[1].cpu().numpy()
+            labels = (labels.to(device).cpu().max(1)[1]).numpy()
+                
+            for i in range(len(logit)):
+                logits.append([logit[i], labels[i]])
+        
+        elog.evaluate('val',steps,logits,class_info)
+    current_loss = current_loss/(len(dataloader))
+    
+    
+    model.train()
+    return current_loss
+    
 def run(init_lr,
         max_steps,
         device,
@@ -45,10 +74,13 @@ def run(init_lr,
         batch_size,
         n_frames,
         num_workers,
+        evaluate_frequently,
+        num_gradient_per_update,
         seed = 42,
         cache=None,
         elog=None,
-        name='i3d-rgb'):
+        name='i3d-rgb'
+        ):
     
     loss_fn = nn.CrossEntropyLoss()
     
@@ -56,6 +88,7 @@ def run(init_lr,
     WIDTH = 224
     
     dataset = dsl.DSL(root, height=HEIGHT, width=WIDTH, n_frames=n_frames,random_seed=seed, cache_folder=cache)
+    class_info = dataset.get_classes()
     person_list = dataset.get_persons()
     
     random.seed(seed)
@@ -115,13 +148,15 @@ def run(init_lr,
 
     num_steps_per_update = 4 # accum gradient
     steps = 0
-    
+    train_loss = []
+    valid_loss = []
+    best_valid_loss = 99999
     for epoch in range(max_steps):#for epoch in range(num_epochs):
         # Each epoch has a training and validation phase
         for phase in ['train','val']:
             
             if phase == 'train':
-                continue
+               
                 #get current learning rate
                 lr = optimizer.param_groups[0]['lr']
                 optimizer.zero_grad()
@@ -132,9 +167,9 @@ def run(init_lr,
                 num_iter = 0
                 
                 #create process bar
-                pbar = tqdm(dataloaders[phase],total=len(dataloaders[phase]))
+                pbar = tqdm(enumerate(dataloaders[phase]),total=len(dataloaders[phase]))
                 
-                for inputs, labels in pbar:
+                for index , (inputs, labels) in pbar:
                     
                     num_iter += 1
 
@@ -165,37 +200,55 @@ def run(init_lr,
                         info  =f"{epoch}/{max_steps} , lr : {lr} , train loss : {tot_loss}" 
                         pbar.set_description(info)
                         pbar.set_postfix()
-                        
+                        train_loss.append(tot_loss)
                         # reset parameters
                         num_iter = 0
                         tot_loss = 0
+                        if (index+1) % evaluate_frequently == 0:
+                            current_valid_loss = evaluate(model,dataloaders['val'],loss_fn,steps,class_info,device=device,pbar=False)
+                            valid_loss.append(current_valid_loss)
+                            pbar.set_postfix_str(f"Valid loss: {round(current_valid_loss,2)}")
+                            
+                            if current_valid_loss < best_valid_loss:
+                                torch.save(model.state_dict(),save_model+"best.pt")
+                                best_valid_loss = current_valid_loss
+                            break
+                        
+                torch.save(model.state_dict(),save_model+"last.pt")
                         
      
            # torch.save(model.module.state_dict(), save_model+'last.pt')
             if phase == 'val':
-         
+                current_valid_loss = evaluate(model,dataloaders['val'],loss_fn,steps,class_info,device=device)
+                valid_loss.append(current_valid_loss)
                 
-                model.eval()
-                logits = []
-                with torch.no_grad():
-                    for data in tqdm(dataloaders[phase],desc = "Evaluating"):
-                        inputs, labels = data
-                        inputs = inputs.to(device)
-                        labels = (labels.to(device).cpu().max(1)[1]).numpy()
-                        
-                        per_frame_logits = model(inputs)
-                      
-                        logit = per_frame_logits.max(-1)[1].cpu().numpy()
-                       
-                            
-                        for i in range(len(logit)):
-                            logits.append([logit[i], labels[i]])
+                print(f"Val loss: ",round(current_valid_loss,2))
+                
+                if current_valid_loss < best_valid_loss:
+                    torch.save(model.state_dict(),save_model+"best.pt")
+                    best_valid_loss = current_valid_loss
+        break
                     
-                    elog.evaluate(phase,steps,logits, dataset.get_classes())
-                model.train()
+                
+               
     
     #save model
-    torch.save(model.module.state_dict(), save_model+f'i3d_train_final.pt')
+    torch.save(model.module.state_dict(), save_model+f'last.pt')
+    plt.figure(clear=True)
+    plt.plot(train_loss)
+    plt.ylabel("Loss")
+    plt.xlabel("Batch")
+    plt.title("Train loss")
+    plt.savefig(save_model+"train_loss.png")
+    plt.close()
+    plt.figure(clear=True)
+    plt.plot(valid_loss)
+    plt.ylabel("Loss")
+    plt.xlabel("Batch")
+    plt.title("Validation loss")
+    plt.savefig(save_model+"val_loss.png")
+    plt.close()
+
 
 
 
@@ -212,11 +265,17 @@ if __name__ == '__main__':
     parser.add_argument('--epochs', type=int, help='number of training epochs', default=1000)
     parser.add_argument('--batch_size', type=int, help='batch_size', default=9)
     parser.add_argument('--num_workers', type=int, help='number of cpu load data', default=8)
+    parser.add_argument('--evaluate_frequently', type=int, help='number of cpu load data', default=4)
+    parser.add_argument('--num_gradient_per_update', type=int, help='number of cpu load data', default=4)
+   
 
     args = parser.parse_args()
     root = args.root
     n_frames = args.n_frames
-    
+    num_gradient_per_update = args.num_gradient_per_update
+    evaluate_frequently = (args.evaluate_frequently // num_gradient_per_update)*num_gradient_per_update
+    print(f"Evaluate frequently: {evaluate_frequently}")
+    print(f"Num gradient per update: {num_gradient_per_update}")
     name = f"i3d-train{n_frames}"
     elog = ev.Eval(run_name=name)
     run(device = args.device, 
@@ -228,4 +287,7 @@ if __name__ == '__main__':
         init_lr = args.lr,
         max_steps = args.epochs,
         batch_size = args.batch_size,
-        num_workers = args.num_workers)
+        num_workers = args.num_workers,
+        evaluate_frequently = evaluate_frequently,
+        num_gradient_per_update = num_gradient_per_update
+        )

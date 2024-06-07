@@ -87,9 +87,9 @@ class Eval:
 
         acc = metrics.accuracy_score(labels,predicted)
         return_str += f"{acc:.4f},"
-        prec = metrics.precision_score(labels,predicted,average=None)
-        rec = metrics.recall_score(labels,predicted,average=None)
-        f1 = metrics.f1_score(labels,predicted,average=None)
+        prec = metrics.precision_score(labels,predicted,average=None, zero_division = 0)
+        rec = metrics.recall_score(labels,predicted,average=None,zero_division = 0 )
+        f1 = metrics.f1_score(labels,predicted,average=None,zero_division = 0 )
         for i in range(len(prec)):
             return_str += f"{prec[i]:.4f},{rec[i]:.4f},{f1[i]:.4f},"
         return return_str
