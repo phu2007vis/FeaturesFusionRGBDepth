@@ -133,6 +133,23 @@ A120 => ong_nhom"""
 
 
 
+def filter_outliers(data):
+    # Calculate the quartiles
+    q1 = np.percentile(data, 20, axis=(1, 2))
+    q3 = np.percentile(data, 70, axis=(1, 2))
+    
+    # Calculate the interquartile range (IQR)
+    iqr = q3 - q1
+    
+    # Calculate the lower and upper bounds
+    lower_bound = q1 - 1.5 * iqr
+    upper_bound = q3 + 1.5 * iqr
+    
+    # Filter out the outliers, replace with the median
+    filtered_data = np.where((data >= lower_bound[:, None, None]) & (data <= upper_bound[:, None, None]), data, np.median(data, axis=(1, 2), keepdims=True))
+
+    return filtered_data
+
 
 class DSL:
     def __init__(self,dataset_path,height=224,width=224,n_frames=320,batch_size=1,map_file=None,random_seed=42,cache_folder=None) -> None:
@@ -179,16 +196,17 @@ class DSL:
             if mapped_class not in self.dataset:
                 self.dataset[mapped_class] = {}
             if person_ not in self.dataset[mapped_class]:
-                self.dataset[mapped_class][person_] = {'rgb_raw':[]}
-                
-            all_data_point = os.listdir(os.path.join(batch_path, 'rgb_raw'))
-            
-            for data_point in all_data_point:
+                self.dataset[mapped_class][person_] = {'depth':[],'rgb':[],'rgb_raw':[]}
+
+            for data_point in os.listdir(os.path.join(batch_path, 'depth')):
+                data_point_path = os.path.join(batch_path,'depth', data_point)
+                avi_file = os.path.join(batch_path,'rgb', data_point.replace('npy', 'avi'))
                 rgb_raw = os.path.join(batch_path,'rgb_raw',data_point)
-                if os.path.exists(rgb_raw) :
+                #if both files exist, add to the dataset
+                if os.path.exists(data_point_path) and os.path.exists(avi_file) and os.path.exists(rgb_raw):
+                    self.dataset[mapped_class][person_]['depth'].append(data_point_path)
+                    self.dataset[mapped_class][person_]['rgb'].append(avi_file)
                     self.dataset[mapped_class][person_]['rgb_raw'].append(rgb_raw)
-                else:
-                    print(f"{rgb_raw} is not exists!")
         print(f"Loaded {len(self.classes)} classes {self.classes}")
         print(f"Loaded {len(self.persons)} persons {self.persons}")
 
@@ -204,11 +222,11 @@ class DSL:
             raise ValueError("Ratios must be greater than 1.")
         
         #shuffle the dataset
-        zipped = list(zip(filter_list['rgb_raw'],filter_list['class']))
+        zipped = list(zip(filter_list['depth'],filter_list['rgb'],filter_list['rgb_raw'],filter_list['class']))
         if randomize:
             random.seed(self.random_seed)
             random.shuffle(zipped)
-        filtered_list = {'rgb_raw' :[],'class':[],'len':0}
+        filtered_list = {'depth':[],'rgb':[],'rgb_raw' :[],'class':[],'len':0}
         result_list = []
         for i in range(len(ratios)):
             result_list.append(filtered_list.copy())
@@ -217,7 +235,7 @@ class DSL:
 
 
     def filter(self,classes:list=None,persons:list=None,randomize=True):
-        filtered_list = {'rgb_raw':[],'class':[],'len':0}
+        filtered_list = {'depth':[],'rgb':[],'rgb_raw':[],'class':[],'len':0}
         #if no classes are specified, use all classes
         if classes is None:
             classes = self.classes
@@ -228,16 +246,16 @@ class DSL:
             for person in persons:
                 if person not in self.dataset[class_]:
                     continue
-              
+                filtered_list['depth'].extend(self.dataset[class_][person]['depth'])
+                filtered_list['rgb'].extend(self.dataset[class_][person]['rgb'])
                 filtered_list['rgb_raw'].extend(self.dataset[class_][person]['rgb_raw'])
-                filtered_list['class'].extend([self.get_class_index(class_)]*len(self.dataset[class_][person]['rgb_raw']))
-                filtered_list['len'] += len(self.dataset[class_][person]['rgb_raw'])
-                
+                filtered_list['class'].extend([self.get_class_index(class_)]*len(self.dataset[class_][person]['depth']))
+                filtered_list['len'] += len(self.dataset[class_][person]['depth'])
         if randomize:
             random.seed(self.random_seed)
-            zipped = list(zip(filtered_list['rgb_raw'],filtered_list['class']))
+            zipped = list(zip(filtered_list['depth'],filtered_list['rgb'],filtered_list['rgb_raw'],filtered_list['class']))
             random.shuffle(zipped)
-            filtered_list['rgb_raw'],filtered_list['class'] = zip(*zipped)
+            filtered_list['depth'],filtered_list['rgb'],filtered_list['rgb_raw'],filtered_list['class'] = zip(*zipped)
         return filtered_list
 
     def get_class_index(self,class_):

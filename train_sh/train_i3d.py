@@ -17,7 +17,7 @@ import eval as ev
 import yaml
 os.makedirs('logs',exist_ok=True)
 import logging.handlers
-
+from resources.utils import *
 log_filename = datetime.datetime.now().strftime("sc_%d_%m_%H_%M_%S.log")
 log_filepath = os.path.join("logs", log_filename)
 
@@ -79,7 +79,8 @@ def run(init_lr=0.001, max_steps=200000, device = "cuda", root="/work/21010294/D
 
     test_ds = dataset.get_generator(test_filter,mode = "valid")
     test_dl = torch.utils.data.DataLoader(test_ds, batch_size=batch_size,  num_workers=num_workers, pin_memory=True)
-
+    visualize_rgb(train_dl,"visualize",percent_visualize=0.5)
+    exit()
     dataloaders = {'train': train_dl, 'val': val_dl, 'test': test_dl}
     
 

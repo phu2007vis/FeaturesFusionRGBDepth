@@ -4,3 +4,4 @@ results/*
 resources/*/__pycache__/*
 train_sh/__pycache__/*
 visu*/
+*.zip
