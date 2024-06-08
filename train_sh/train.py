@@ -9,12 +9,12 @@ from tqdm import tqdm
 import resources.utils.rgb_dataset as dsl
 import random
 import datetime
-from resources.i3d.pytorch_i3d import InceptionI3d
 import eval as ev
 import yaml
 import logging.handlers
 import matplotlib.pyplot as plt
 from resources.utils import *
+from resources import get_model
 
 
 
@@ -67,7 +67,8 @@ def evaluate(model,dataloader,loss_fn,steps,class_info,device = 'cuda',pbar = Tr
     model.train()
     return current_loss
     
-def run(init_lr,
+def run(model_name,
+        init_lr,
         max_steps,
         device,
         root,
@@ -137,16 +138,15 @@ def run(init_lr,
     # visualize_rgb(train_dl,"visualize",percent_visualize=0.5)
     # exit()
     
-    model = InceptionI3d(400, in_channels=3)
-    model.replace_logits(num_classes)
+    model = get_model(model_name,num_classes)
     model.to(device)
     model = nn.DataParallel(model)
     print(f"Train on {device}")
-    
+    print(f"Model name {model_name} ")
     lr = init_lr
     optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=0.0000001)
 
-    num_steps_per_update = 4 # accum gradient
+ 
     steps = 0
     train_loss = []
     valid_loss = []
@@ -181,7 +181,7 @@ def run(init_lr,
                     per_frame_logits = model(inputs)
             
                     #caculate loss
-                    loss = loss_fn(per_frame_logits,labels)/num_steps_per_update
+                    loss = loss_fn(per_frame_logits,labels)/num_gradient_per_update
                     
                     #caculate gradient 
                     loss.backward()
@@ -190,7 +190,7 @@ def run(init_lr,
                     tot_loss += loss.data.item()
                     
                     # update each num_steps_per_update batch
-                    if num_iter == num_steps_per_update :
+                    if num_iter == num_gradient_per_update :
                         
                         #update weight
                         optimizer.step()
@@ -212,8 +212,7 @@ def run(init_lr,
                             if current_valid_loss < best_valid_loss:
                                 torch.save(model.state_dict(),save_model+"best.pt")
                                 best_valid_loss = current_valid_loss
-                            break
-                        
+                    
                 torch.save(model.state_dict(),save_model+"last.pt")
                         
      
@@ -227,9 +226,7 @@ def run(init_lr,
                 if current_valid_loss < best_valid_loss:
                     torch.save(model.state_dict(),save_model+"best.pt")
                     best_valid_loss = current_valid_loss
-        break
-                    
-                
+ 
                
     
     #save model
@@ -255,8 +252,10 @@ def run(init_lr,
 if __name__ == '__main__':
     # need to add argparse
     parser = argparse.ArgumentParser()
+    # model name s3d or i3d
+    parser.add_argument("--model_name",type=str,default="s3d")
     parser.add_argument("--device",type=str,default="cuda")
-    parser.add_argument('-r', '--root', type=str, help='root directory of the dataset', default=r"/work/21013187/SignLanguageRGBD/ViSLver2/Processed")
+    parser.add_argument('-r', '--root', type=str, help='root directory of the dataset', default=r"/work/21013187/SignLanguageRGBD/data/ver2_all_rgb_only")
     parser.add_argument('-n', '--n_frames', type=int, help='n frame', default= 72)
     parser.add_argument('-c', '--cache', type=str, help='cache directory', default=None)
     parser.add_argument('--seed', type=int, help='seed', default=42)
@@ -265,8 +264,9 @@ if __name__ == '__main__':
     parser.add_argument('--epochs', type=int, help='number of training epochs', default=1000)
     parser.add_argument('--batch_size', type=int, help='batch_size', default=9)
     parser.add_argument('--num_workers', type=int, help='number of cpu load data', default=8)
-    parser.add_argument('--evaluate_frequently', type=int, help='number of cpu load data', default=4)
+    parser.add_argument('--evaluate_frequently', type=int, help='number of cpu load data', default=200)
     parser.add_argument('--num_gradient_per_update', type=int, help='number of cpu load data', default=4)
+    
    
 
     args = parser.parse_args()
@@ -278,7 +278,8 @@ if __name__ == '__main__':
     print(f"Num gradient per update: {num_gradient_per_update}")
     name = f"i3d-train{n_frames}"
     elog = ev.Eval(run_name=name)
-    run(device = args.device, 
+    run(model_name='s3d',
+        device = args.device, 
         root=root, name=name,
         n_frames=n_frames,
         elog=elog,
