@@ -77,6 +77,9 @@ def run(model_name,
         num_workers,
         evaluate_frequently,
         num_gradient_per_update,
+        pretrained_path,
+        learnig_scheduler_gammar,
+        learnig_scheduler_step,
         seed = 42,
         cache=None,
         elog=None,
@@ -140,11 +143,17 @@ def run(model_name,
     
     model = get_model(model_name,num_classes)
     model.to(device)
+    if len(pretrained_path):
+        model_state_dict= torch.load(pretrained_path,map_location=device)
+        model.load_state_dict(model_state_dict)
     model = nn.DataParallel(model)
     print(f"Train on {device}")
     print(f"Model name {model_name} ")
+    
     lr = init_lr
     optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=0.0000001)
+    
+    learning_scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=learnig_scheduler_gammar)
 
  
     steps = 0
@@ -213,10 +222,11 @@ def run(model_name,
                                 torch.save(model.state_dict(),save_model+"best.pt")
                                 best_valid_loss = current_valid_loss
                     
-                torch.save(model.state_dict(),save_model+"last.pt")
+                torch.save(model,save_model+"last.pt")
                         
-     
-           # torch.save(model.module.state_dict(), save_model+'last.pt')
+                if (epoch+1) % learnig_scheduler_step == 0:
+                    learning_scheduler.step()
+          
             if phase == 'val':
                 current_valid_loss = evaluate(model,dataloaders['val'],loss_fn,steps,class_info,device=device)
                 valid_loss.append(current_valid_loss)
@@ -224,7 +234,7 @@ def run(model_name,
                 print(f"Val loss: ",round(current_valid_loss,2))
                 
                 if current_valid_loss < best_valid_loss:
-                    torch.save(model.state_dict(),save_model+"best.pt")
+                    torch.save(model,save_model+"best.pt")
                     best_valid_loss = current_valid_loss
  
                
@@ -254,31 +264,44 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     # model name s3d or i3d
     parser.add_argument("--model_name",type=str,default="s3d")
+    parser.add_argument("--pretrained",type=str,default='')
     parser.add_argument("--device",type=str,default="cuda")
     parser.add_argument('-r', '--root', type=str, help='root directory of the dataset', default=r"/work/21013187/SignLanguageRGBD/data/ver2_all_rgb_only")
-    parser.add_argument('-n', '--n_frames', type=int, help='n frame', default= 72)
+    parser.add_argument('--learnig_scheduler_gammar',type=float,default=0.7 ,help='decrease the learning rate by 0.6')
+    parser.add_argument('--learnig_scheduler_step',type=int ,default=15)
+    parser.add_argument('-n', '--n_frames', type=int, help='n frame', default= 120)
     parser.add_argument('-c', '--cache', type=str, help='cache directory', default=None)
     parser.add_argument('--seed', type=int, help='seed', default=42)
     parser.add_argument('--a_config', type=str, help='spatial augumentation config', default="train_sh/config/spatial_augument_config.yaml")
-    parser.add_argument('--lr',type=float,default =0.001, help='init learning rate')
+    parser.add_argument('--lr',type=float,default =0.005, help='init learning rate')
     parser.add_argument('--epochs', type=int, help='number of training epochs', default=1000)
-    parser.add_argument('--batch_size', type=int, help='batch_size', default=9)
+    parser.add_argument('--batch_size', type=int, help='batch_size', default=6)
     parser.add_argument('--num_workers', type=int, help='number of cpu load data', default=8)
     parser.add_argument('--evaluate_frequently', type=int, help='number of cpu load data', default=200)
-    parser.add_argument('--num_gradient_per_update', type=int, help='number of cpu load data', default=4)
+    parser.add_argument('--num_gradient_per_update', type=int, help='number of cpu load data', default=6)
     
    
-
+   
     args = parser.parse_args()
     root = args.root
+    
+    model_name = args.model_name
     n_frames = args.n_frames
+    pretrained_path = args.pretrained
+    
     num_gradient_per_update = args.num_gradient_per_update
     evaluate_frequently = (args.evaluate_frequently // num_gradient_per_update)*num_gradient_per_update
+    
+    learnig_scheduler_gammar = args.learnig_scheduler_gammar
+    learnig_scheduler_step = args.learnig_scheduler_step
+    
     print(f"Evaluate frequently: {evaluate_frequently}")
     print(f"Num gradient per update: {num_gradient_per_update}")
-    name = f"i3d-train{n_frames}"
+    
+    name = f"{model_name}-{n_frames}"
     elog = ev.Eval(run_name=name)
-    run(model_name='s3d',
+    
+    run(model_name=model_name,
         device = args.device, 
         root=root, name=name,
         n_frames=n_frames,
@@ -290,5 +313,8 @@ if __name__ == '__main__':
         batch_size = args.batch_size,
         num_workers = args.num_workers,
         evaluate_frequently = evaluate_frequently,
-        num_gradient_per_update = num_gradient_per_update
+        num_gradient_per_update = num_gradient_per_update,
+        pretrained_path = pretrained_path, 
+        learnig_scheduler_gammar = learnig_scheduler_gammar,
+        learnig_scheduler_step = learnig_scheduler_step
         )
