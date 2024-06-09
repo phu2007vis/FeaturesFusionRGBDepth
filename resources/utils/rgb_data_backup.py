@@ -277,7 +277,6 @@ class DSL:
                          cache_folder=self.cache_folder,
                          spatial_augument = spatial_augument)
         
-optical_flow = cv2.optflow.createOptFlow_DualTVL1()
 class Generator(torch.utils.data.IterableDataset ):
     def __init__(self,
                  data_paths,

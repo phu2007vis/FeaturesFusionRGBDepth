@@ -259,7 +259,7 @@ def run(model_name,
 
 
 
-if __name__ == '__main__':
+if True:
     # need to add argparse
     parser = argparse.ArgumentParser()
     # model name s3d or i3d
