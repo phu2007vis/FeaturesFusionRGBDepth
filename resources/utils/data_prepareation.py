@@ -29,7 +29,7 @@ def resize_img(img, short_size=256):
     #     return cv2.resize(img, (ow, oh))
 
 
-def video_loader(video_path, short_size):
+def video_loader(video_path, short_size = 224):
     video = []
     vidcap = cv2.VideoCapture(str(video_path))
     success, image = vidcap.read()

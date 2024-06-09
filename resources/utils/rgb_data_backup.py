@@ -6,7 +6,7 @@ import numpy as np
 import torch
 import math
 from resources.utils import *
-
+from resources.utils.data_prepareation import video_loader
 
 DEFAULT_MAP = """A1 => nha_lau
 A2 => nha_may_ngoi
@@ -196,17 +196,16 @@ class DSL:
             if mapped_class not in self.dataset:
                 self.dataset[mapped_class] = {}
             if person_ not in self.dataset[mapped_class]:
-                self.dataset[mapped_class][person_] = {'depth':[],'rgb':[],'rgb_raw':[]}
+                self.dataset[mapped_class][person_] = {'rgb':[]}
 
-            for data_point in os.listdir(os.path.join(batch_path, 'depth')):
-                data_point_path = os.path.join(batch_path,'depth', data_point)
-                avi_file = os.path.join(batch_path,'rgb', data_point.replace('npy', 'avi'))
-                rgb_raw = os.path.join(batch_path,'rgb_raw',data_point)
-                #if both files exist, add to the dataset
-                if os.path.exists(data_point_path) and os.path.exists(avi_file) and os.path.exists(rgb_raw):
-                    self.dataset[mapped_class][person_]['depth'].append(data_point_path)
+            for data_point in os.listdir(os.path.join(batch_path, 'rgb')):
+                avi_file = os.path.join(batch_path,'rgb', data_point)
+             
+               
+                if  os.path.exists(avi_file) :
                     self.dataset[mapped_class][person_]['rgb'].append(avi_file)
-                    self.dataset[mapped_class][person_]['rgb_raw'].append(rgb_raw)
+                  
+                    
         print(f"Loaded {len(self.classes)} classes {self.classes}")
         print(f"Loaded {len(self.persons)} persons {self.persons}")
 
@@ -222,11 +221,11 @@ class DSL:
             raise ValueError("Ratios must be greater than 1.")
         
         #shuffle the dataset
-        zipped = list(zip(filter_list['depth'],filter_list['rgb'],filter_list['rgb_raw'],filter_list['class']))
+        zipped = list(zip(filter_list['rgb'],filter_list['class']))
         if randomize:
             random.seed(self.random_seed)
             random.shuffle(zipped)
-        filtered_list = {'depth':[],'rgb':[],'rgb_raw' :[],'class':[],'len':0}
+        filtered_list = {'rgb':[],'class':[],'len':0}
         result_list = []
         for i in range(len(ratios)):
             result_list.append(filtered_list.copy())
@@ -235,7 +234,7 @@ class DSL:
 
 
     def filter(self,classes:list=None,persons:list=None,randomize=True):
-        filtered_list = {'depth':[],'rgb':[],'rgb_raw':[],'class':[],'len':0}
+        filtered_list = {'rgb':[],'class':[],'len':0}
         #if no classes are specified, use all classes
         if classes is None:
             classes = self.classes
@@ -246,16 +245,15 @@ class DSL:
             for person in persons:
                 if person not in self.dataset[class_]:
                     continue
-                filtered_list['depth'].extend(self.dataset[class_][person]['depth'])
+              
                 filtered_list['rgb'].extend(self.dataset[class_][person]['rgb'])
-                filtered_list['rgb_raw'].extend(self.dataset[class_][person]['rgb_raw'])
-                filtered_list['class'].extend([self.get_class_index(class_)]*len(self.dataset[class_][person]['depth']))
-                filtered_list['len'] += len(self.dataset[class_][person]['depth'])
+                filtered_list['class'].extend([self.get_class_index(class_)]*len(self.dataset[class_][person]['rgb']))
+                filtered_list['len'] += len(self.dataset[class_][person]['rgb'])
         if randomize:
             random.seed(self.random_seed)
-            zipped = list(zip(filtered_list['depth'],filtered_list['rgb'],filtered_list['rgb_raw'],filtered_list['class']))
+            zipped = list(zip(filtered_list['rgb'],filtered_list['class']))
             random.shuffle(zipped)
-            filtered_list['depth'],filtered_list['rgb'],filtered_list['rgb_raw'],filtered_list['class'] = zip(*zipped)
+            filtered_list['rgb'],filtered_list['class'] = zip(*zipped)
         return filtered_list
 
     def get_class_index(self,class_):
@@ -323,11 +321,12 @@ class Generator(torch.utils.data.IterableDataset ):
     def get_data(self,start,end):
         #create a list of labels
         labels = self.data_paths['class']
-        rgb_batch = self.data_paths['rgb_raw']
+        rgb_batch = self.data_paths['rgb']
         
         for i in range(start,end):
+            path = rgb_batch[i]
             y = labels[i]
-            X = np.load(rgb_batch[i])
+            X = np.array(video_loader(path))
             X_spatial_augumented = self.spatial_transform.transform_fn(X)
             X_temperal_augumented = self.temperal_augument.get_augmented_data(X_spatial_augumented).permute(1,0,2,3)
             y = torch.nn.functional.one_hot(torch.tensor(y,dtype= torch.int64),len(self.classes)).float()
