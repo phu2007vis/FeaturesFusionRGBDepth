@@ -6,3 +6,4 @@ train_sh/__pycache__/*
 visu*/
 *.zip
 test_data/
+resources/__pycache__/*

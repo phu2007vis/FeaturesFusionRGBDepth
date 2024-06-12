@@ -273,7 +273,6 @@ class Generator(torch.utils.data.IterableDataset ):
                  classes,
                  mode,
                  cache_folder,
-                 num_join,
                  spatial_augument = None,
                  **kwargs) -> None:
         super(Generator).__init__()
@@ -289,7 +288,7 @@ class Generator(torch.utils.data.IterableDataset ):
         self.cache_folder = cache_folder
         self.temperal_augument  = TemperalAugument(self.n_frames,mode=mode)
         self.spatial_transform = SpatialTransform(augument=spatial_augument)
-        self.num_join  = num_join
+        
     def __len__(self):
         return self.end
     def __iter__(self):
@@ -314,7 +313,7 @@ class Generator(torch.utils.data.IterableDataset ):
         for i in range(start,end):
             y = labels[i]
             X = np.load(rgb_batch[i])
-            print(X.shape)
+
             X_spatial_augumented = self.spatial_transform.transform_fn(X)
             X_temperal_augumented = self.temperal_augument.get_augmented_data(X_spatial_augumented).permute(1,0,2,3)
             y = torch.nn.functional.one_hot(torch.tensor(y,dtype= torch.int64),len(self.classes)).float()

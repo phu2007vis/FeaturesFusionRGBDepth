@@ -331,9 +331,8 @@ class Generator(torch.utils.data.IterableDataset ):
             path = batch[i]
             y = labels[i]
             X = np.load(path)[:,:self.num_join//2,:-1].reshape(-1,33*2)
-            X_spatial = torch.tensor(self.temperal_augument.get_augmented_data(X)).float()
-            X_time = X_spatial.permute(0,1)
+            X_time = torch.tensor(self.temperal_augument.get_augmented_data(X)).float()
+            X_spatial = X_time.permute(1,0)
             y = torch.nn.functional.one_hot(torch.tensor(y,dtype= torch.int64),len(self.classes)).float()
-    
             yield  X_time,X_spatial, y
 

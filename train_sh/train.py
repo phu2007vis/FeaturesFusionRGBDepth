@@ -39,7 +39,7 @@ def handle_exception(exc_type, exc_value, exc_traceback):
     # Call the default handler
     sys.__excepthook__(exc_type, exc_value, exc_traceback)
 sys.excepthook = handle_exception
-def evaluate(model,dataloader,loss_fn,steps,class_info,device = 'cuda',pbar = True):
+def evaluate(model,model_name,dataloader,loss_fn,steps,class_info,device = 'cuda',pbar = True):
     model.eval()
     logits = []
     current_loss = 0
@@ -49,8 +49,12 @@ def evaluate(model,dataloader,loss_fn,steps,class_info,device = 'cuda',pbar = Tr
      
         for data in data_iter:
             
-            inputs, labels = data
-            inputs = inputs.to(device)
+            if model_name != 'lstm':
+                inputs, labels = data
+                inputs = inputs.to(device)
+            else:
+                x_time,x_spatial ,labels = data
+                inputs = (x_time.to(device),x_spatial.to(device))
             labels = labels.to(device)
             
             per_frame_logits = model(inputs)
@@ -170,7 +174,7 @@ def run(
         for phase in ['train','val']:
             
             if phase == 'train':
-               
+                continue
                 #get current learning rate
                 lr = optimizer.param_groups[0]['lr']
                 optimizer.zero_grad()
@@ -191,7 +195,6 @@ def run(
                         inputs = inputs.to(device)
                     else:
                         x_time,x_spatial ,labels = data
-                        import pdb;pdb.set_trace()
                         inputs = (x_time.to(device),x_spatial.to(device))
                     # move to device ('cpu' or 'gpu' - 'cuda' )
                     
@@ -225,7 +228,7 @@ def run(
                         num_iter = 0
                         tot_loss = 0
                         if (index+1) % evaluate_frequently == 0:
-                            current_valid_loss = evaluate(model,dataloaders['val'],loss_fn,steps,class_info,device=device,pbar=False)
+                            current_valid_loss = evaluate(model,model_name,dataloaders['val'],loss_fn,steps,class_info,device=device,pbar=False)
                             valid_loss.append(current_valid_loss)
                             pbar.set_postfix_str(f"Valid loss: {round(current_valid_loss,2)}")
                             
@@ -239,7 +242,7 @@ def run(
                 #     learning_scheduler.step()
           
             if phase == 'val':
-                current_valid_loss = evaluate(model,dataloaders['val'],loss_fn,steps,class_info,device=device)
+                current_valid_loss = evaluate(model,model_name,dataloaders['val'],loss_fn,steps,class_info,device=device)
                 valid_loss.append(current_valid_loss)
                 
                 print(f"Val loss: ",round(current_valid_loss,2))
