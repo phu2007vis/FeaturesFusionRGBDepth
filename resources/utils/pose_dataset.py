@@ -6,7 +6,7 @@ import numpy as np
 import torch
 import math
 from resources.utils import *
-
+from resources.utils.data_prepareation import video_loader
 
 DEFAULT_MAP = """A1 => nha_lau
 A2 => nha_may_ngoi
@@ -133,15 +133,37 @@ A120 => ong_nhom"""
 
 
 
+def filter_outliers(data):
+    # Calculate the quartiles
+    q1 = np.percentile(data, 20, axis=(1, 2))
+    q3 = np.percentile(data, 70, axis=(1, 2))
+    
+    # Calculate the interquartile range (IQR)
+    iqr = q3 - q1
+    
+    # Calculate the lower and upper bounds
+    lower_bound = q1 - 1.5 * iqr
+    upper_bound = q3 + 1.5 * iqr
+    
+    # Filter out the outliers, replace with the median
+    filtered_data = np.where((data >= lower_bound[:, None, None]) & (data <= upper_bound[:, None, None]), data, np.median(data, axis=(1, 2), keepdims=True))
+
+    return filtered_data
+
 
 class DSL:
-    def __init__(self,dataset_path,height=224,width=224,n_frames=320,batch_size=1,map_file=None,random_seed=42,cache_folder=None) -> None:
+    def __init__(self,
+                 dataset_path,
+                 n_frames=320,
+                 batch_size=1,
+                 map_file=None,
+                 random_seed=42,
+                 cache_folder=None
+                 ) -> None:
         '''
         Depth Sign Language Dataset Loader (Preprocessing and Data Augmentation)
         '''
         self.dataset_path = dataset_path
-        self.height = height
-        self.width = width
         self.n_frames = n_frames
         self.batch_size = batch_size
         self.random_seed = random_seed
@@ -179,16 +201,19 @@ class DSL:
             if mapped_class not in self.dataset:
                 self.dataset[mapped_class] = {}
             if person_ not in self.dataset[mapped_class]:
-                self.dataset[mapped_class][person_] = {'rgb_raw':[]}
+                self.dataset[mapped_class][person_] = {'rgb':[],'pose': []}
+
+            for data_point in os.listdir(os.path.join(batch_path, 'rgb')):
+                avi_file = os.path.join(batch_path,'rgb', data_point)
+                pose_name = data_point.replace('.avi','.npy')
+                pose_file = os.path.join(batch_path,'mediapipe_landmarks',pose_name)
                 
-            all_data_point = os.listdir(os.path.join(batch_path, 'rgb_raw'))
             
-            for data_point in all_data_point:
-                rgb_raw = os.path.join(batch_path,'rgb_raw',data_point)
-                if os.path.exists(rgb_raw) :
-                    self.dataset[mapped_class][person_]['rgb_raw'].append(rgb_raw)
-                else:
-                    print(f"{rgb_raw} is not exists!")
+                if  os.path.exists(avi_file) and pose_file :
+                    self.dataset[mapped_class][person_]['rgb'].append(avi_file)
+                    self.dataset[mapped_class][person_]['pose'].append(pose_file)
+                  
+                    
         print(f"Loaded {len(self.classes)} classes {self.classes}")
         print(f"Loaded {len(self.persons)} persons {self.persons}")
 
@@ -204,11 +229,11 @@ class DSL:
             raise ValueError("Ratios must be greater than 1.")
         
         #shuffle the dataset
-        zipped = list(zip(filter_list['rgb_raw'],filter_list['class']))
+        zipped = list(zip(filter_list['rgb'],filter_list['pose'],filter_list['class']))
         if randomize:
             random.seed(self.random_seed)
             random.shuffle(zipped)
-        filtered_list = {'rgb_raw' :[],'class':[],'len':0}
+        filtered_list = {'rgb':[],'pose':[],'class':[],'len':0}
         result_list = []
         for i in range(len(ratios)):
             result_list.append(filtered_list.copy())
@@ -217,7 +242,7 @@ class DSL:
 
 
     def filter(self,classes:list=None,persons:list=None,randomize=True):
-        filtered_list = {'rgb_raw':[],'class':[],'len':0}
+        filtered_list = {'rgb':[],'pose': [],'class':[],'len':0}
         #if no classes are specified, use all classes
         if classes is None:
             classes = self.classes
@@ -229,15 +254,15 @@ class DSL:
                 if person not in self.dataset[class_]:
                     continue
               
-                filtered_list['rgb_raw'].extend(self.dataset[class_][person]['rgb_raw'])
-                filtered_list['class'].extend([self.get_class_index(class_)]*len(self.dataset[class_][person]['rgb_raw']))
-                filtered_list['len'] += len(self.dataset[class_][person]['rgb_raw'])
-                
+                filtered_list['rgb'].extend(self.dataset[class_][person]['rgb'])
+                filtered_list['pose'].extend(self.dataset[class_][person]['pose'])
+                filtered_list['class'].extend([self.get_class_index(class_)]*len(self.dataset[class_][person]['rgb']))
+                filtered_list['len'] += len(self.dataset[class_][person]['rgb'])
         if randomize:
             random.seed(self.random_seed)
-            zipped = list(zip(filtered_list['rgb_raw'],filtered_list['class']))
+            zipped = list(zip(filtered_list['rgb'],filtered_list['pose'],filtered_list['class']))
             random.shuffle(zipped)
-            filtered_list['rgb_raw'],filtered_list['class'] = zip(*zipped)
+            filtered_list['rgb'],filtered_list['pose'],filtered_list['class'] = zip(*zipped)
         return filtered_list
 
     def get_class_index(self,class_):
@@ -248,38 +273,29 @@ class DSL:
         return self.classes
     def get_persons(self):
         return self.persons
-    def get_generator(self,filtered_list=None,mode = None,randomize=True,spatial_augument = None,**kwargs):
+    def get_generator(self,filtered_list=None,mode = None,randomize=True,spatial_augument = None):
         if filtered_list is None:
             filtered_list = self.filter(randomize=randomize)
         return Generator(filtered_list,
-                         self.height,
-                         self.width,
                          self.n_frames,
                          self.batch_size,
                          self.classes,
                          mode = mode,
                          cache_folder=self.cache_folder,
-                         spatial_augument = spatial_augument,
-                         **kwargs)
+                         spatial_augument = spatial_augument)
         
-optical_flow = cv2.optflow.createOptFlow_DualTVL1()
 class Generator(torch.utils.data.IterableDataset ):
     def __init__(self,
                  data_paths,
-                 height,
-                 width,
                  n_frames,
                  batch_size,
                  classes,
                  mode,
                  cache_folder,
-                 num_join,
-                 spatial_augument = None,
-                 **kwargs) -> None:
+                 num_join = 66,
+                 spatial_augument = None) -> None:
         super(Generator).__init__()
         self.data_paths = data_paths
-        self.height = height
-        self.width = width
         self.n_frames = n_frames
         self.batch_size = batch_size
         self.mode = mode
@@ -289,7 +305,7 @@ class Generator(torch.utils.data.IterableDataset ):
         self.cache_folder = cache_folder
         self.temperal_augument  = TemperalAugument(self.n_frames,mode=mode)
         self.spatial_transform = SpatialTransform(augument=spatial_augument)
-        self.num_join  = num_join
+        self.num_join = num_join
     def __len__(self):
         return self.end
     def __iter__(self):
@@ -309,14 +325,15 @@ class Generator(torch.utils.data.IterableDataset ):
     def get_data(self,start,end):
         #create a list of labels
         labels = self.data_paths['class']
-        rgb_batch = self.data_paths['rgb_raw']
+        batch = self.data_paths['pose']
         
         for i in range(start,end):
+            path = batch[i]
             y = labels[i]
-            X = np.load(rgb_batch[i])
-            print(X.shape)
-            X_spatial_augumented = self.spatial_transform.transform_fn(X)
-            X_temperal_augumented = self.temperal_augument.get_augmented_data(X_spatial_augumented).permute(1,0,2,3)
+            X = np.load(path)[:,:self.num_join//2,:-1].reshape(-1,33*2)
+            X_spatial = torch.tensor(self.temperal_augument.get_augmented_data(X)).float()
+            X_time = X_spatial.permute(0,1)
             y = torch.nn.functional.one_hot(torch.tensor(y,dtype= torch.int64),len(self.classes)).float()
-            yield X_temperal_augumented, y
+    
+            yield  X_time,X_spatial, y
 

@@ -6,7 +6,8 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from tqdm import tqdm
-import resources.utils.rgb_data_backup as dsl
+import resources.utils.rgb_dataset as dsl
+import resources.utils.pose_dataset as pose_dsl
 import random
 import datetime
 import eval as ev
@@ -67,7 +68,8 @@ def evaluate(model,dataloader,loss_fn,steps,class_info,device = 'cuda',pbar = Tr
     model.train()
     return current_loss
     
-def run(model_name,
+def run(
+        model_name,
         init_lr,
         max_steps,
         device,
@@ -83,15 +85,18 @@ def run(model_name,
         seed = 42,
         cache=None,
         elog=None,
-        name='i3d-rgb'
-        ):
+        name='i3d-rgb',
+        num_keypoints = None,
+        **kwargs):
     
     loss_fn = nn.CrossEntropyLoss()
     
     HEIGHT = 224
     WIDTH = 224
-    
-    dataset = dsl.DSL(root, height=HEIGHT, width=WIDTH, n_frames=n_frames,random_seed=seed, cache_folder=cache)
+    if model_name != 'lstm':
+        dataset = dsl.DSL(root, height=HEIGHT, width=WIDTH, n_frames=n_frames,random_seed=seed, cache_folder=cache)
+    else:
+        dataset = pose_dsl.DSL(root, n_frames=n_frames,random_seed=seed, cache_folder=cache)
     class_info = dataset.get_classes()
     person_list = dataset.get_persons()
     
@@ -125,13 +130,13 @@ def run(model_name,
         except:
             spatial_augument = None
         
-    train_ds = dataset.get_generator(train_filter,mode = "train",spatial_augument = spatial_augument)
+    train_ds = dataset.get_generator(train_filter,mode = "train",spatial_augument = spatial_augument,**kwargs)
     train_dl = torch.utils.data.DataLoader(train_ds, batch_size=batch_size,  num_workers=num_workers, pin_memory=True)
 
-    val_ds = dataset.get_generator(val_filter,mode = "valid")
+    val_ds = dataset.get_generator(val_filter,mode = "valid",**kwargs)
     val_dl = torch.utils.data.DataLoader(val_ds, batch_size=batch_size,  num_workers=num_workers, pin_memory=True)
 
-    test_ds = dataset.get_generator(test_filter,mode = "valid")
+    test_ds = dataset.get_generator(test_filter,mode = "valid",**kwargs)
     test_dl = torch.utils.data.DataLoader(test_ds, batch_size=batch_size,  num_workers=num_workers, pin_memory=True)
     
     dataloaders = {'train': train_dl, 'val': val_dl, 'test': test_dl}
@@ -140,8 +145,8 @@ def run(model_name,
     #turn on this for visualize
     # visualize_rgb(train_dl,"visualize",percent_visualize=0.5)
     # exit()
-    
-    model = get_model(model_name,num_classes)
+  
+    model = get_model(model_name,num_classes,num_keypoints = num_keypoints,n_frames = n_frames,**kwargs)
     model.to(device)
     if len(pretrained_path):
         model_state_dict= torch.load(pretrained_path,map_location=device)
@@ -153,7 +158,7 @@ def run(model_name,
     lr = init_lr
     optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=0.0000001)
     
-    learning_scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=learnig_scheduler_gammar)
+    # learning_scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=learnig_scheduler_gammar)
 
  
     steps = 0
@@ -178,12 +183,18 @@ def run(model_name,
                 #create process bar
                 pbar = tqdm(enumerate(dataloaders[phase]),total=len(dataloaders[phase]))
                 
-                for index , (inputs, labels) in pbar:
+                for index ,data in pbar:
                     
                     num_iter += 1
-
+                    if model_name != 'lstm':
+                        inputs, labels = data
+                        inputs = inputs.to(device)
+                    else:
+                        x_time,x_spatial ,labels = data
+                        import pdb;pdb.set_trace()
+                        inputs = (x_time.to(device),x_spatial.to(device))
                     # move to device ('cpu' or 'gpu' - 'cuda' )
-                    inputs = inputs.to(device)
+                    
                     labels = labels.to(device)
                     
                     #forward
@@ -224,8 +235,8 @@ def run(model_name,
                     
                 torch.save(model,save_model+"last.pt")
                         
-                if (epoch+1) % learnig_scheduler_step == 0:
-                    learning_scheduler.step()
+                # if (epoch+1) % learnig_scheduler_step == 0:
+                #     learning_scheduler.step()
           
             if phase == 'val':
                 current_valid_loss = evaluate(model,dataloaders['val'],loss_fn,steps,class_info,device=device)
@@ -263,17 +274,19 @@ if True:
     # need to add argparse
     parser = argparse.ArgumentParser()
     # model name s3d or i3d
-    parser.add_argument("--model_name",type=str,default="s3d")
+    parser.add_argument("--model_name",type=str,default="lstm",help='i3d or s3d or lstm')
     parser.add_argument("--pretrained",type=str,default='')
     parser.add_argument("--device",type=str,default="cuda")
     parser.add_argument('-r', '--root', type=str, help='root directory of the dataset', default=r"/work/21013187/SignLanguageRGBD/data/ver2_all_rgb_only")
     parser.add_argument('--learnig_scheduler_gammar',type=float,default=0.7 ,help='decrease the learning rate by 0.6')
     parser.add_argument('--learnig_scheduler_step',type=int ,default=15)
     parser.add_argument('-n', '--n_frames', type=int, help='n frame', default= 120)
+    parser.add_argument( '--num_keypoints', type=int, help='just for lstm', default= 66)
+    
     parser.add_argument('-c', '--cache', type=str, help='cache directory', default=None)
     parser.add_argument('--seed', type=int, help='seed', default=42)
     parser.add_argument('--a_config', type=str, help='spatial augumentation config', default="train_sh/config/spatial_augument_config.yaml")
-    parser.add_argument('--lr',type=float,default =0.005, help='init learning rate')
+    parser.add_argument('--lr',type=float,default =0.0005, help='init learning rate')
     parser.add_argument('--epochs', type=int, help='number of training epochs', default=1000)
     parser.add_argument('--batch_size', type=int, help='batch_size', default=6)
     parser.add_argument('--num_workers', type=int, help='number of cpu load data', default=8)
@@ -281,11 +294,12 @@ if True:
     parser.add_argument('--num_gradient_per_update', type=int, help='number of cpu load data', default=6)
     
    
-   
+    all_model_name = ['i3d','s3d','lstm']
     args = parser.parse_args()
     root = args.root
     
     model_name = args.model_name
+    assert(model_name in all_model_name)
     n_frames = args.n_frames
     pretrained_path = args.pretrained
     
@@ -301,7 +315,8 @@ if True:
     name = f"{model_name}-{n_frames}"
     elog = ev.Eval(run_name=name)
     
-    run(model_name=model_name,
+    run(
+        model_name=model_name,
         device = args.device, 
         root=root, name=name,
         n_frames=n_frames,
@@ -316,5 +331,6 @@ if True:
         num_gradient_per_update = num_gradient_per_update,
         pretrained_path = pretrained_path, 
         learnig_scheduler_gammar = learnig_scheduler_gammar,
-        learnig_scheduler_step = learnig_scheduler_step
+        learnig_scheduler_step = learnig_scheduler_step,
+        num_keypoints = args.num_keypoints
         )
