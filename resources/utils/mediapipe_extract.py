@@ -46,7 +46,11 @@ def detectPose(image):
             
             # Append the landmark into the list.
             landmarks.append([landmark.x , landmark.y ,landmark.z]) 
-    
+    else:
+        
+        for _ in range(33):
+            
+            landmarks.append([-1,-1,-1])
     return landmarks
 def extract_one_file(video_path,save_path):
     video_list = video_loader(video_path)

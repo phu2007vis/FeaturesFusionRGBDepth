@@ -1,8 +1,8 @@
 #!/bin/bash
 #SBATCH --job-name=extract_pose
-#SBATCH --partition=large
+#SBATCH --partition=normal
 #SBATCH --nodes=1
-#SBATCH --time=40:00:00
+#SBATCH --time=20:00:00
 #SBATCH --output=logs/%x_%j_%D.out
 #SBATCH --account=ddt_acc23
 #SBATCH --error=logs/%x_%j_%D.err

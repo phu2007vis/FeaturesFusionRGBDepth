@@ -1,12 +1,11 @@
 import tqdm
 import random
 import os
-import cv2
 import numpy as np
 import torch
 import math
 from resources.utils import *
-from resources.utils.data_prepareation import video_loader
+
 
 DEFAULT_MAP = """A1 => nha_lau
 A2 => nha_may_ngoi
@@ -182,6 +181,7 @@ class DSL:
         self.get_dataset_info()
 
     def get_dataset_info(self):
+    
         # Get the dataset path
         data_batch = os.listdir(self.dataset_path)
         print(f"Gathering dataset information from {len(data_batch)} batches...\n")
@@ -210,10 +210,11 @@ class DSL:
                 
             
                 if  os.path.exists(avi_file) and pose_file :
+                    
                     self.dataset[mapped_class][person_]['rgb'].append(avi_file)
                     self.dataset[mapped_class][person_]['pose'].append(pose_file)
-                  
-                    
+                
+     
         print(f"Loaded {len(self.classes)} classes {self.classes}")
         print(f"Loaded {len(self.persons)} persons {self.persons}")
 
