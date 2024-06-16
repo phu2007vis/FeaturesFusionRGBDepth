@@ -30,7 +30,7 @@ class LSTMModel(nn.Module):
                  numlayers  = 2,
                  num_attention_layers = 2,
                  num_head_attention = 8,
-                 dropout = 0.3,
+                 dropout = 0.1,
                  activate = "ReLU",
                  *args,
                  **kwargs) -> None:
@@ -41,7 +41,9 @@ class LSTMModel(nn.Module):
         self.lstm_spatial = nn.LSTM(n_frames, hidden_size, numlayers, batch_first=True)
         self.cross_attention_module = PCrossAttentionModule(hidden_size,num_attention_layers,num_head_attention,dropout,activate)
         self.position_embeding = PositionalEncoding(hidden_size)
-        self.mlp  = MLP([hidden_size,128,num_classes],0)
+        self.mlp  = MLP([hidden_size,num_classes],0)
+        
+        self.mlp.mlp_main[0].linear_layer_main[1] = nn.Identity()
         self.num_classes = num_classes
     def forward(self,x):
         x_time,x_spatial = x
@@ -51,8 +53,8 @@ class LSTMModel(nn.Module):
         # Forward propagate LSTM
         out1, _ = self.lstm_time(x_time, (h0, c0))  
         out2, _ = self.lstm_spatial(x_spatial, (h0,c0))
-        time_out = self.position_embeding(out1[:,-1,:])
-        spatial_out = self.position_embeding(out2[:,-1,:])
+        time_out = out1[:,-1,:]
+        spatial_out = out2[:,-1,:]
    
         self.out_attention = self.cross_attention_module((time_out,spatial_out))
         return self.mlp(self.out_attention)

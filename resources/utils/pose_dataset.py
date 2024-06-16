@@ -209,7 +209,7 @@ class DSL:
                 pose_file = os.path.join(batch_path,'mediapipe_landmarks',pose_name)
                 
             
-                if  os.path.exists(avi_file) and pose_file :
+                if  os.path.exists(pose_file) and pose_file :
                     
                     self.dataset[mapped_class][person_]['rgb'].append(avi_file)
                     self.dataset[mapped_class][person_]['pose'].append(pose_file)

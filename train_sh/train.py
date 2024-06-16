@@ -55,6 +55,7 @@ def evaluate(model,model_name,dataloader,loss_fn,steps,class_info,device = 'cuda
             else:
                 x_time,x_spatial ,labels = data
                 inputs = (x_time.to(device),x_spatial.to(device))
+                
             labels = labels.to(device)
             
             per_frame_logits = model(inputs)
@@ -195,18 +196,20 @@ def run(
                     else:
                         x_time,x_spatial ,labels = data
                         inputs = (x_time.to(device),x_spatial.to(device))
+                
                     # move to device ('cpu' or 'gpu' - 'cuda' )
                     
                     labels = labels.to(device)
                     
                     #forward
                     per_frame_logits = model(inputs)
-            
+                    
                     #caculate loss
-                    loss = loss_fn(per_frame_logits,labels)/num_gradient_per_update
+                    loss = loss_fn(per_frame_logits,labels)/num_gradient_per_update    
                     
                     #caculate gradient 
                     loss.backward()
+                    # import pdb;pdb.set_trace()
                     
                     #convert to float and add to total loss
                     tot_loss += loss.data.item()
@@ -282,18 +285,18 @@ if True:
     parser.add_argument('-r', '--root', type=str, help='root directory of the dataset', default=r"/work/21013187/SignLanguageRGBD/data/ver2_all_rgb_only")
     parser.add_argument('--learnig_scheduler_gammar',type=float,default=0.7 ,help='decrease the learning rate by 0.6')
     parser.add_argument('--learnig_scheduler_step',type=int ,default=15)
-    parser.add_argument('-n', '--n_frames', type=int, help='n frame', default= 72)
+    parser.add_argument('-n', '--n_frames', type=int, help='n frame', default= 32)
     parser.add_argument( '--num_keypoints', type=int, help='just for lstm', default= 66)
     
     parser.add_argument('-c', '--cache', type=str, help='cache directory', default=None)
     parser.add_argument('--seed', type=int, help='seed', default=42)
     parser.add_argument('--a_config', type=str, help='spatial augumentation config', default="train_sh/config/spatial_augument_config.yaml")
-    parser.add_argument('--lr',type=float,default =0.001, help='init learning rate')
+    parser.add_argument('--lr',type=float,default =0.005, help='init learning rate')
     parser.add_argument('--epochs', type=int, help='number of training epochs', default=1000)
     parser.add_argument('--batch_size', type=int, help='batch_size', default=6)
     parser.add_argument('--num_workers', type=int, help='number of cpu load data', default=8)
     parser.add_argument('--evaluate_frequently', type=int, help='number of cpu load data', default=200)
-    parser.add_argument('--num_gradient_per_update', type=int, help='number of cpu load data', default=6)
+    parser.add_argument('--num_gradient_per_update', type=int, help='number of cpu load data', default=20)
     
    
     all_model_name = ['i3d','s3d','lstm']
