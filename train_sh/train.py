@@ -148,8 +148,8 @@ def run(
     num_classes = len(dataset.get_classes())
     
     #turn on this for visualize
-    # visualize_rgb(train_dl,"visualize",percent_visualize=0.5)
-    # exit()
+    visualize_pose(train_dl,"visualize",percent_visualize=0.5)
+    exit()
   
     model = get_model(model_name,num_classes,num_keypoints = num_keypoints,n_frames = n_frames,**kwargs)
     model.to(device)

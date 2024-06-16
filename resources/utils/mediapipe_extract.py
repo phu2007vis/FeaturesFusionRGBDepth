@@ -84,6 +84,7 @@ def extract_one_file_paralel(param):
     
 
 
+
 def visualize_poses(visualize_path, np_result_path,frame_size = 224):
     """
     Load numpy result and visualize the detected poses on the video frames.
