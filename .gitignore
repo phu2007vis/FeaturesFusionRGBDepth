@@ -7,3 +7,4 @@ visu*/
 *.zip
 test_data/
 resources/__pycache__/*
+test.py
