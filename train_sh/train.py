@@ -280,13 +280,13 @@ if True:
     # need to add argparse
     parser = argparse.ArgumentParser()
     # model name s3d or i3d
-    parser.add_argument("--model_name",type=str,default="i3d",help='i3d or s3d or lstm')
+    parser.add_argument("--model_name",type=str,default="transformer-s",help='i3d or s3d or lstm')
     parser.add_argument("--pretrained",type=str,default='')
     parser.add_argument("--device",type=str,default="cuda")
     parser.add_argument('-r', '--root', type=str, help='root directory of the dataset', default=r"/work/21013187/SignLanguageRGBD/data/ver2_all_rgb_only")
     parser.add_argument('--learnig_scheduler_gammar',type=float,default=0.7 ,help='decrease the learning rate by 0.6')
     parser.add_argument('--learnig_scheduler_step',type=int ,default=15)
-    parser.add_argument('-n', '--n_frames', type=int, help='n frame', default= 120)
+    parser.add_argument('-n', '--n_frames', type=int, help='n frame', default= 72)
     parser.add_argument( '--num_keypoints', type=int, help='just for lstm', default= 66)
     
     parser.add_argument('-c', '--cache', type=str, help='cache directory', default=None)
