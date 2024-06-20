@@ -148,8 +148,8 @@ def run(
     num_classes = len(dataset.get_classes())
     
     #turn on this for visualize
-    visualize_pose(train_dl,"visualize",percent_visualize=0.5)
-    exit()
+    # visualize_pose(train_dl,"visualize",percent_visualize=0.5)
+    # exit()
   
     model = get_model(model_name,num_classes,num_keypoints = num_keypoints,n_frames = n_frames,**kwargs)
     model.to(device)
@@ -279,25 +279,25 @@ if True:
     # need to add argparse
     parser = argparse.ArgumentParser()
     # model name s3d or i3d
-    parser.add_argument("--model_name",type=str,default="lstm",help='i3d or s3d or lstm')
+    parser.add_argument("--model_name",type=str,default="i3d",help='i3d or s3d or lstm')
     parser.add_argument("--pretrained",type=str,default='')
     parser.add_argument("--device",type=str,default="cuda")
     parser.add_argument('-r', '--root', type=str, help='root directory of the dataset', default=r"/work/21013187/SignLanguageRGBD/data/ver2_all_rgb_only")
     parser.add_argument('--learnig_scheduler_gammar',type=float,default=0.7 ,help='decrease the learning rate by 0.6')
     parser.add_argument('--learnig_scheduler_step',type=int ,default=15)
-    parser.add_argument('-n', '--n_frames', type=int, help='n frame', default= 32)
+    parser.add_argument('-n', '--n_frames', type=int, help='n frame', default= 120)
     parser.add_argument( '--num_keypoints', type=int, help='just for lstm', default= 66)
     
     parser.add_argument('-c', '--cache', type=str, help='cache directory', default=None)
     parser.add_argument('--seed', type=int, help='seed', default=42)
     parser.add_argument('--a_config', type=str, help='spatial augumentation config', default="train_sh/config/spatial_augument_config.yaml")
     parser.add_argument('--lr',type=float,default =0.005, help='init learning rate')
-    parser.add_argument('--epochs', type=int, help='number of training epochs', default=1000)
+    parser.add_argument('--epochs', type=int, help='number of training epochs', default=600)
     parser.add_argument('--batch_size', type=int, help='batch_size', default=6)
     parser.add_argument('--num_workers', type=int, help='number of cpu load data', default=8)
     parser.add_argument('--evaluate_frequently', type=int, help='number of cpu load data', default=200)
     parser.add_argument('--num_gradient_per_update', type=int, help='number of cpu load data', default=20)
-    
+    parser.add_argument('--fintuning',type = int, default = 1)
    
     all_model_name = ['i3d','s3d','lstm']
     args = parser.parse_args()

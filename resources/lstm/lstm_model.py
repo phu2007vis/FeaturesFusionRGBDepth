@@ -52,12 +52,13 @@ class LSTMModel(nn.Module):
         
         # Forward propagate LSTM
         out1, _ = self.lstm_time(x_time, (h0, c0))  
-        out2, _ = self.lstm_spatial(x_spatial, (h0,c0))
+        # out2, _ = self.lstm_spatial(x_spatial, (h0,c0))
         time_out = out1[:,-1,:]
-        spatial_out = out2[:,-1,:]
+        # spatial_out = out2[:,-1,:]
    
-        self.out_attention = self.cross_attention_module((time_out,spatial_out))
-        return self.mlp(self.out_attention)
+        # self.out_attention = self.cross_attention_module((time_out,spatial_out))
+        # return self.mlp(self.out_attention)
+        return self.mlp(time_out)
         
 
 if __name__ == "__main__":
@@ -72,6 +73,7 @@ if __name__ == "__main__":
     # possition_embedding(x).shape
     model = LSTMModel(100,time,num_join,512)
     output = model((x_time,x_spatial))
+    # import pdb;pdb.set_trace()
     for param in model.parameters():
         sum+= param.numel()
     
