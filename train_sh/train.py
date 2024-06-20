@@ -87,6 +87,7 @@ def run(
         pretrained_path,
         learnig_scheduler_gammar,
         learnig_scheduler_step,
+    
         seed = 42,
         cache=None,
         elog=None,
@@ -337,5 +338,6 @@ if True:
         pretrained_path = pretrained_path, 
         learnig_scheduler_gammar = learnig_scheduler_gammar,
         learnig_scheduler_step = learnig_scheduler_step,
-        num_keypoints = args.num_keypoints
+        num_keypoints = args.num_keypoints,
+        fintuning = args.fintuning
         )
