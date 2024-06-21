@@ -1,11 +1,13 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.autograd import Variable
 
 import numpy as np
 
 import os
-from resources.utils.download import *
+import sys
+from collections import OrderedDict
 
 
 class MaxPool3dSamePadding(nn.MaxPool3d):
@@ -181,16 +183,11 @@ class InceptionI3d(nn.Module):
         'Mixed_5b',
         'Mixed_5c',
         'Logits',
+        'Predictions',
     )
 
-    def __init__(self, num_classes=157, 
-                 pretrained = True,
-                 spatial_squeeze=True,
-                 final_endpoint='Logits',
-                 name='inception_i3d',
-                 in_channels=3,
-                 dropout_keep_prob=0.5
-                 ):
+    def __init__(self, num_classes=157, spatial_squeeze=True,
+                 final_endpoint='Logits', name='inception_i3d', in_channels=3, dropout_keep_prob=0.5):
         """Initializes I3D model instance.
         Args:
           num_classes: The number of outputs in the logit layer (default 400, which
@@ -296,8 +293,7 @@ class InceptionI3d(nn.Module):
         self.avg_pool = nn.AvgPool3d(kernel_size=[2, 7, 7],
                                      stride=(1, 1, 1))
         self.dropout = nn.Dropout(dropout_keep_prob)
-        tmp_classes = 157
-        self.logits = Unit3D(in_channels=384+384+128+128, output_channels=tmp_classes,
+        self.logits = Unit3D(in_channels=384+384+128+128, output_channels=self._num_classes,
                              kernel_shape=[1, 1, 1],
                              padding=0,
                              activation_fn=None,
@@ -306,19 +302,6 @@ class InceptionI3d(nn.Module):
                              name='logits')
 
         self.build()
-        if pretrained:
-            self.load_weight()
-            print("I3D load pretrained weight sucessfully!")
-        if num_classes != tmp_classes:
-            self.logits = Unit3D(in_channels=384+384+128+128, output_channels=num_classes,
-                             kernel_shape=[1, 1, 1],
-                             padding=0,
-                             activation_fn=None,
-                             use_batch_norm=False,
-                             use_bias=True,
-                             name='logits')
-        print(f"I3D have {num_classes} classes!")
-
 
 
     def replace_logits(self, num_classes):
@@ -344,7 +327,6 @@ class InceptionI3d(nn.Module):
         x = self.logits(self.dropout(self.avg_pool(x)))
         if self._spatial_squeeze:
             logits = x.squeeze(3).squeeze(3)
-            logits = torch.mean(logits,dim=-1).squeeze()
         # logits is batch X time X classes, which is what we want to work with
         return logits
         
@@ -354,49 +336,3 @@ class InceptionI3d(nn.Module):
             if end_point in self.end_points:
                 x = self._modules[end_point](x)
         return self.avg_pool(x)
-    def load_weight(self):
-        path = "https://github.com/piergiaj/pytorch-i3d/raw/master/models/rgb_charades.pt"
-        model_dir = os.path.join(get_torch_home(), 'checkpoints')
-        os.makedirs(model_dir, exist_ok=True)
-
-        cached_file = os.path.join(model_dir, os.path.basename(path))
-        if not os.path.exists(cached_file):
-            download_url_to_file(path, cached_file)
-
-        state_dict = torch.load(cached_file)
-        self.load_state_dict(state_dict)
-    def fintuning(self,from_layer):
-        '''
-        if from_layer is string => finetuning model from this layer name to the end
-        if from layer is integer => finetuning model n last layer
-        '''
-        print(f"Finetuning with tag {from_layer}")
-        for param in self.parameters():
-            param.requires_grad = False
-
-        if isinstance(from_layer,str):
-            if from_layer == 'last':
-                print(f"Finetuning only last layer")
-                for param in self.logits.parameters():
-                    param.requires_grad = True
-
-        elif isinstance(from_layer,int):
-            if from_layer == -1:
-                for param in self.parameters():
-                    param.requires_grad = True
-            else:
-                print(f"Finetuning only {from_layer} last layers!")
-                layer_names =  [layer_name for layer_name in self.VALID_ENDPOINTS[::-1] if  'Max' not in layer_name]
-
-                for layer_name in layer_names[:from_layer]:
-
-                    if layer_name == "Logits":
-                        for param in self.logits.parameters():
-                            param.requires_grad = True
-                        continue
-
-                    layer  = self.end_points[layer_name]
-                    for param in layer.named_parameters():
-                        param.required_grad = True
-                    
-    

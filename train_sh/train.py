@@ -280,7 +280,7 @@ if True:
     # need to add argparse
     parser = argparse.ArgumentParser()
     # model name s3d or i3d
-    parser.add_argument("--model_name",type=str,default="transformer-s",help='i3d or s3d or lstm')
+    parser.add_argument("--model_name",type=str,default="i3d",help='i3d or s3d or lstm')
     parser.add_argument("--pretrained",type=str,default='')
     parser.add_argument("--device",type=str,default="cuda")
     parser.add_argument('-r', '--root', type=str, help='root directory of the dataset', default=r"/work/21013187/SignLanguageRGBD/data/ver2_all_rgb_only")
@@ -298,14 +298,13 @@ if True:
     parser.add_argument('--num_workers', type=int, help='number of cpu load data', default=8)
     parser.add_argument('--evaluate_frequently', type=int, help='number of cpu load data', default=200)
     parser.add_argument('--num_gradient_per_update', type=int, help='number of cpu load data', default=20)
-    parser.add_argument('--fintuning',type = int, default = 1)
-   
-    all_model_name = ['i3d','s3d','lstm']
+    parser.add_argument('--fintuning',type = int, default = -1)
+  
     args = parser.parse_args()
     root = args.root
     
     model_name = args.model_name
-    assert(model_name in all_model_name)
+  
     n_frames = args.n_frames
     pretrained_path = args.pretrained
     

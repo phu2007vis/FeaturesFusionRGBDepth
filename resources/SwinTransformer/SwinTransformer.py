@@ -1,5 +1,8 @@
 import torch
-from torchvision.models.video import swin3d_s,Swin3D_S_Weights,Swin3D_B_Weights,Swin3D_T_Weights,swin3d_b,swin3d_t
+try:
+    from torchvision.models.video import swin3d_s,Swin3D_S_Weights,Swin3D_B_Weights,Swin3D_T_Weights,swin3d_b,swin3d_t
+except:
+    from resources.SwinTransformer.SwinTransformer_helper import *
 import torch.nn as nn
 
 
@@ -29,7 +32,7 @@ class SwinTransformer(nn.Module):
         return self.model(x)
     
 if __name__ == "__main__":
-    model = SwinTransformer('t')
+    model = SwinTransformer('b')
     x = torch.randn(2,3,70,224,224)
     import pdb;pdb.set_trace()
         
