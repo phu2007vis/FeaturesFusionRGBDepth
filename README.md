@@ -8,6 +8,7 @@
    Clone this repo
    ```bash
    git clone https://github.com/phu2007vis/Baseline_ViSL1.git
+   cd Baseline_ViSL1
    ```
    Before install libary , assert python is available in your machine
    ```bash
@@ -38,7 +39,14 @@
          -ANPN
             ...
    Change the path of data root in resources/utils/data_preparation.py
+   ```bash
+   Run this script ( disk of your machine must at least 100GB )
+   python  resources/utils/data_preparation.py
    ```
-   
-
-4. Tranning
+3. Tranning
+   - Change data root path ,device 'cpu' if cuda is not available in file   train_sh\train.py
+   - Change model name i3d or s3d or lstm  or transformer-s or tranformer-t
+   - Run this script
+     ```bash
+     python train_sh\train.py
+     ```
