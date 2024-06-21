@@ -6,7 +6,7 @@
 # Training 
 1. Data preparetion
    Before run scrip ,prepare data like this structure:
-   ```
+   '''
    root_folder
          -A1P1
             --rgb
@@ -27,8 +27,7 @@
          ...
          -ANPN
             ...
-   ```
-    
+   '''
 3. Install libary
    Before install libary , assert python is available in your machine
    ```bash
