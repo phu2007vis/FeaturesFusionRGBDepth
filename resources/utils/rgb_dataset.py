@@ -262,7 +262,6 @@ class DSL:
                          spatial_augument = spatial_augument,
                          **kwargs)
         
-optical_flow = cv2.optflow.createOptFlow_DualTVL1()
 class Generator(torch.utils.data.IterableDataset ):
     def __init__(self,
                  data_paths,
