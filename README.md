@@ -49,5 +49,5 @@
    - Change model name i3d or s3d or lstm  or transformer-s or tranformer-t
    - Run this script
      ```bash
-     python train_sh\train.py
+     python train_sh/train.py
      ```
