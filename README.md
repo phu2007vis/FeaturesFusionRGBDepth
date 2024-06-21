@@ -39,8 +39,9 @@
          -ANPN
             ...
    Change the path of data root in resources/utils/data_preparation.py
-   ```bash
+   ```
    Run this script ( disk of your machine must at least 100GB )
+   ```bash
    python  resources/utils/data_preparation.py
    ```
 3. Tranning
