@@ -248,7 +248,7 @@ class DSL:
         return self.classes
     def get_persons(self):
         return self.persons
-    def get_generator(self,filtered_list=None,mode = None,randomize=True,spatial_augument = None,**kwargs):
+    def get_generator(self,filtered_list=None,mode = None,randomize=True,spatial_augument = None,fintuning = None,**kwargs):
         if filtered_list is None:
             filtered_list = self.filter(randomize=randomize)
         return Generator(filtered_list,

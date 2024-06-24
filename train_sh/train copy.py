@@ -178,6 +178,7 @@ def run(
         for phase in ['train','val']:
             
             if phase == 'train':
+                continue
                 #get current learning rate
                 lr = optimizer.param_groups[0]['lr']
                 optimizer.zero_grad()

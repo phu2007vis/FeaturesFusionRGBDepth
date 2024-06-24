@@ -3,7 +3,6 @@ import os
 import datetime
 import pickle
 import numpy as np
-import seaborn as sns
 import matplotlib.pyplot as plt
 class Eval:
     def __init__(self,run_name):
@@ -14,15 +13,28 @@ class Eval:
         os.makedirs(os.path.join(save_folder, "raw"), exist_ok=True)
         os.makedirs(os.path.join(save_folder, "confusion_matrix"), exist_ok=True)
         #create a csv file in the folder to save loss
-        self.loss_file = os.path.join(save_folder, "loss.csv")
-        self.loss_file_handle = open(self.loss_file, "w")
-        self.add_loss_entry("epoch,loss,loc_loss,cls_loss,total_loss")
+        self.train_loss_file = os.path.join(save_folder, "train_loss.csv")
+        self.valid_loss_file = os.path.join(save_folder,'valid_loss.csv')
+        self.train_loss_file_handler = open(self.train_loss_file, "w")
+        self.valid_loss_file_handler = open(self.valid_loss_file, "w")
+        self.train_count_line = 0
+        self.valid_count_line =  0
+        self.add_train_loss("iter,train_loss")
+        self.add_valid_loss("iter,valid_loss")
+        
     def set_labels(self,labels):
         self.labels = labels
-    def add_loss_entry(self,entry):
-        self.loss_file_handle.write(f"{entry}\n")
+    def add_train_loss(self,entry):
+        train_count_line = self.train_count_line
+        self.train_loss_file_handler.write(f"{train_count_line},{entry}\n")
+        self.train_count_line+=1
         #flush the buffer to write to the file
-        self.loss_file_handle.flush()
+        self.train_loss_file_handler.flush()
+    def add_valid_loss(self,entry):
+        valid_count_line = self.valid_count_line
+        self.valid_loss_file_handler.write(f"{valid_count_line},{entry}\n")
+        self.valid_count_line+=1
+        self.valid_loss_file_handler.flush()
     def evaluate(self,phase,ep,result,class_labels):
         raw_file = os.path.join(self.save_folder, "raw", f"{phase}_{ep}_raw.pkl")
         with open(raw_file, "wb") as f:
@@ -41,31 +53,35 @@ class Eval:
 
     def get_path(self):
         return self.save_folder
-    def save_confusion_matrix(self, phase,ep, result, class_labels):
+    def save_confusion_matrix(self, phase,ep, result,class_names,normalize = 'pred'):
+        num_classes = len(class_names)
+
         predicted = [x[0] for x in result]
-        labels = [x[3] for x in result]
-        
-        cm = np.zeros((len(class_labels), len(class_labels)), dtype=np.float32)
-        for i in range(len(predicted)):
-            cm[labels[i], predicted[i]] += 1
-        ds_type = f"{phase} set"
-        print('Confusion matrix of ' + ds_type)
-        print(f'Classes: {labels}')
-        print(cm)
-        ax = sns.heatmap(cm, annot=True, fmt='g', cmap='Blues', cbar=False)
-        sns.set(rc={'figure.figsize': (16, 16)})  # Increase figure size
-        sns.set(font_scale=1.2)  # Decrease font scale
-        ax.set_title('Confusion matrix of ' + ds_type)
-        ax.set_xlabel('Predicted Action')
-        ax.set_ylabel('Actual Action')
-        plt.xticks(rotation=90, fontsize=6)  # Decrease font size and rotate x-axis labels
-        plt.yticks(rotation=0, fontsize=6)  # Decrease font size and rotate y-axis labels
-        ax.xaxis.set_ticklabels(class_labels)
-        ax.yaxis.set_ticklabels(class_labels)
-        #save the confusion matrix as a png file in the confusion_matrix folder as name [phase]_[ep]_confusion_matrix.png
-        cm_file = os.path.join(self.save_folder, "confusion_matrix", f"{phase}_{ep}_confusion_matrix.svg")
-        plt.savefig(cm_file, dpi=300, format='svg',bbox_inches='tight')  # Increase dpi for higher resolution
+        labels = [x[1] for x in result]
+
+        # Create a confusion matrix
+        matrix = metrics.confusion_matrix(labels, predicted, normalize=normalize)
+
+    
+        display = metrics.ConfusionMatrixDisplay(confusion_matrix=matrix,display_labels=class_names)
+        fig, ax = plt.subplots(figsize=(30,30))
+        display.plot(ax=ax,cmap='Blues', values_format='.2f' if normalize else 'd')
+        # Remove the values in the confusion matrix
+        for text in display.text_.ravel():
+            text.set_visible(False)
+
+        # Customize plot titles and labels
+        plt.title(f'Confusion Matrix - {phase.capitalize()} Phase - Epoch {ep}')
+        plt.xlabel('Predicted Label')
+        plt.ylabel('True Label')
+        plt.xticks(rotation=90)
+        # Save the confusion matrix plot
+        cm_folder = os.path.join(self.save_folder, "confusion_matrix")
+        os.makedirs(cm_folder, exist_ok=True)
+        cm_file = os.path.join(cm_folder, f"{phase}_{ep}_confusion_matrix.svg")
+        plt.savefig(cm_file, dpi=300, format='svg', bbox_inches='tight')  # Increase dpi for higher resolution
         plt.close()
+
 
     def calculate_metrics(self,result):
         return_str = ""
