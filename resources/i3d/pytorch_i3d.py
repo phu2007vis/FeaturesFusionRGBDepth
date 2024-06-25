@@ -210,13 +210,14 @@ class InceptionI3d(nn.Module):
         self._spatial_squeeze = spatial_squeeze
         self._final_endpoint = final_endpoint
         self.logits = None
+        tmp_in_channles = 3
 
         if self._final_endpoint not in self.VALID_ENDPOINTS:
             raise ValueError('Unknown final endpoint %s' % self._final_endpoint)
 
         self.end_points = {}
         end_point = 'Conv3d_1a_7x7'
-        self.end_points[end_point] = Unit3D(in_channels=in_channels, output_channels=64, kernel_shape=[7, 7, 7],
+        self.end_points[end_point] = Unit3D(in_channels=tmp_in_channles, output_channels=64, kernel_shape=[7, 7, 7],
                                             stride=(2, 2, 2), padding=(3,3,3),  name=name+end_point)
         if self._final_endpoint == end_point: return
         
@@ -311,7 +312,13 @@ class InceptionI3d(nn.Module):
                              use_batch_norm=False,
                              use_bias=True,
                              name='logits')
+        if tmp_in_channles != in_channels:
+            end_point = 'Conv3d_1a_7x7'
+            self.end_points[end_point] = Unit3D(in_channels=in_channels, output_channels=64, kernel_shape=[7, 7, 7],
+                                                stride=(2, 2, 2), padding=(3,3,3),  name=name+end_point)
+            self._modules[end_point] = self.end_points[end_point]
         print(f"I3D have {num_classes} classes!")
+        print(f"I3D have {in_channels} in channels!")
 
 
 
@@ -333,7 +340,7 @@ class InceptionI3d(nn.Module):
     def forward(self, x):
         for end_point in self.VALID_ENDPOINTS:
             if end_point in self.end_points:
-                x = self._modules[end_point](x) # use _modules to work with dataparallel
+                x = self._modules[end_point](x) 
 
         x = self.logits(self.dropout(self.avg_pool(x)))
         if self._spatial_squeeze:
@@ -345,6 +352,7 @@ class InceptionI3d(nn.Module):
 
     def extract_features(self, x):
         for end_point in self.VALID_ENDPOINTS:
+            print(end_point)
             if end_point in self.end_points:
                 x = self._modules[end_point](x)
         return self.avg_pool(x)
@@ -358,7 +366,7 @@ class InceptionI3d(nn.Module):
             download_url_to_file(path, cached_file)
 
         state_dict = torch.load(cached_file)
-        self.load_state_dict(state_dict)
+        self.load_state_dict(state_dict,strict=False)
     def fintuning(self,from_layer):
         '''
         if from_layer is string => finetuning model from this layer name to the end

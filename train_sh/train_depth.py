@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from tqdm import tqdm
-import resources.utils.rgb_dataset as dsl
+import resources.utils.rgb_depth_dataset as dsl
 import resources.utils.pose_dataset as pose_dsl
 import random
 import datetime
@@ -160,6 +160,7 @@ def run(
         model_state_dict= torch.load(pretrained_path,map_location=device)
         model.load_state_dict(model_state_dict)
     model = nn.DataParallel(model)
+
     print(f"Train on {device}")
     print(f"Model name {model_name} ")
     
@@ -178,8 +179,7 @@ def run(
         for phase in ['train','val']:
             
             if phase == 'train':
-                continue
-                #get current learning rate
+                
                 lr = optimizer.param_groups[0]['lr']
                 optimizer.zero_grad()
                 model.train()
@@ -202,10 +202,9 @@ def run(
                         inputs = (x_time.to(device),x_spatial.to(device))
                 
                     # move to device ('cpu' or 'gpu' - 'cuda' )
-                    
+                  
                     labels = labels.to(device)
                     
-                    #forward
                     per_frame_logits = model(inputs)
                     
                     #caculate loss
@@ -286,10 +285,11 @@ if True:
     # need to add argparse
     parser = argparse.ArgumentParser()
     # model name s3d or i3d
-    parser.add_argument("--model_name",type=str,default="i3d",help='i3d or s3d or lstm')
+    parser.add_argument("--model_name",type=str,default="i3d",help='i3d')
+    parser.add_argument("--in_channles",type=int,default=4)
     parser.add_argument("--pretrained",type=str,default='')
     parser.add_argument("--device",type=str,default="cuda")
-    parser.add_argument('-r', '--root', type=str, help='root directory of the dataset', default=r"/work/21013187/SignLanguageRGBD/data/ver2_all_rgb_only")
+    parser.add_argument('-r', '--root', type=str, help='root directory of the dataset', default=r"/work/21013187/SignLanguageRGBD/ViSLver2/Processed")
     parser.add_argument('--learnig_scheduler_gammar',type=float,default=0.7 ,help='decrease the learning rate by 0.6')
     parser.add_argument('--learnig_scheduler_step',type=int ,default=15)
     parser.add_argument('-n', '--n_frames', type=int, help='n frame', default= 72)
@@ -308,7 +308,7 @@ if True:
   
     args = parser.parse_args()
     root = args.root
-    
+    in_channles = args.in_channles
     model_name = args.model_name
   
     n_frames = args.n_frames
@@ -323,7 +323,8 @@ if True:
     print(f"Evaluate frequently: {evaluate_frequently}")
     print(f"Num gradient per update: {num_gradient_per_update}")
     
-    name = f"{model_name}-{n_frames}"
+    # name = f"{model_name}-{n_frames}"
+    name = 'test'
     elog = ev.Eval(run_name=name)
     
     run(
@@ -344,5 +345,6 @@ if True:
         learnig_scheduler_gammar = learnig_scheduler_gammar,
         learnig_scheduler_step = learnig_scheduler_step,
         num_keypoints = args.num_keypoints,
-        fintuning = args.fintuning
+        fintuning = args.fintuning,
+        in_channles = in_channles
         )

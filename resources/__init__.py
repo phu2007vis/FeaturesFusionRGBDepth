@@ -4,9 +4,9 @@ from resources.lstm.lstm_model import LSTMModel
 from resources.SwinTransformer.SwinTransformer import SwinTransformer
 
 
-def get_model(name,num_classes,fintuning, **kwargs):
+def get_model(name,num_classes,fintuning,in_channles = 3, **kwargs):
     if name == 'i3d':
-        model = InceptionI3d(400, in_channels=3)
+        model = InceptionI3d(400, in_channels=in_channles)
         model.replace_logits(num_classes)
         model.fintuning(from_layer=fintuning)
         return model

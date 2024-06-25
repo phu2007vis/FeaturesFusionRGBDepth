@@ -201,21 +201,21 @@ def run(
                         inputs = (x_time.to(device),x_spatial.to(device))
                 
                     # move to device ('cpu' or 'gpu' - 'cuda' )
-                    
-                    labels = labels.to(device)
-                    
-                    #forward
-                    per_frame_logits = model(inputs)
-                    
-                    #caculate loss
-                    loss = loss_fn(per_frame_logits,labels)/num_gradient_per_update    
-                    
-                    #caculate gradient 
-                    loss.backward()
-                    # import pdb;pdb.set_trace()
-                    
-                    #convert to float and add to total loss
-                    tot_loss += loss.data.item()
+                    if labels.shape[0] !=1:
+                        labels = labels.to(device)
+                        
+                        #forward
+                        per_frame_logits = model(inputs)
+                        
+                        #caculate loss
+                        loss = loss_fn(per_frame_logits,labels)/num_gradient_per_update    
+                        
+                        #caculate gradient 
+                        loss.backward()
+                        # import pdb;pdb.set_trace()
+                        
+                        #convert to float and add to total loss
+                        tot_loss += loss.data.item()
                     
                     # update each num_steps_per_update batch
                     if num_iter == num_gradient_per_update :
