@@ -15,7 +15,7 @@ import yaml
 import logging.handlers
 import matplotlib.pyplot as plt
 from resources.utils import *
-from resources import get_model
+from resources import get_model,get_i3d_depth_model
 
 
 
@@ -154,7 +154,7 @@ def run(
     # visualize_pose(train_dl,"visualize",percent_visualize=0.5)
     # exit()
   
-    model = get_model(model_name,num_classes,num_keypoints = num_keypoints,n_frames = n_frames,**kwargs)
+    model = get_i3d_depth_model(model_name,num_classes)
     model.to(device)
     if len(pretrained_path):
         model_state_dict= torch.load(pretrained_path,map_location=device)
@@ -194,16 +194,15 @@ def run(
                 for index ,data in pbar:
                     
                     num_iter += 1
-                    if model_name != 'lstm':
-                        inputs, labels = data
-                        inputs = inputs.to(device)
-                    else:
-                        x_time,x_spatial ,labels = data
-                        inputs = (x_time.to(device),x_spatial.to(device))
-                
-                    # move to device ('cpu' or 'gpu' - 'cuda' )
-                  
+                    inputs, labels = data
                     labels = labels.to(device)
+                    inputs = inputs.to(device)
+                    
+                    if model_name != 'i3d':
+                        rgb = inputs[:,:3,...]
+                        depth = inputs[:,-1:a,...]
+                        inputs = (rgb,depth)
+
                     
                     per_frame_logits = model(inputs)
                     
@@ -285,7 +284,7 @@ if True:
     # need to add argparse
     parser = argparse.ArgumentParser()
     # model name s3d or i3d
-    parser.add_argument("--model_name",type=str,default="i3d",help='i3d')
+    parser.add_argument("--model_name",type=str,default="middle_fusion",help='i3d')
     parser.add_argument("--in_channles",type=int,default=4)
     parser.add_argument("--pretrained",type=str,default='')
     parser.add_argument("--device",type=str,default="cuda")

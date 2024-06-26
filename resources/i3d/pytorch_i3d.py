@@ -272,20 +272,20 @@ class InceptionI3d(nn.Module):
 
         end_point = 'Mixed_4f'
         self.end_points[end_point] = InceptionModule(112+288+64+64, [256,160,320,32,128,128], name+end_point)
-        if self._final_endpoint == end_point: return
+       
 
         end_point = 'MaxPool3d_5a_2x2'
         self.end_points[end_point] = MaxPool3dSamePadding(kernel_size=[2, 2, 2], stride=(2, 2, 2),
                                                              padding=0)
-        if self._final_endpoint == end_point: return
+
 
         end_point = 'Mixed_5b'
         self.end_points[end_point] = InceptionModule(256+320+128+128, [256,160,320,32,128,128], name+end_point)
-        if self._final_endpoint == end_point: return
+   
 
         end_point = 'Mixed_5c'
         self.end_points[end_point] = InceptionModule(256+320+128+128, [384,192,384,48,128,128], name+end_point)
-        if self._final_endpoint == end_point: return
+      
 
         end_point = 'Logits'
         self.avg_pool = nn.AvgPool3d(kernel_size=[2, 7, 7],
@@ -339,8 +339,11 @@ class InceptionI3d(nn.Module):
         
     def forward(self, x):
         for end_point in self.VALID_ENDPOINTS:
+            
             if end_point in self.end_points:
                 x = self._modules[end_point](x) 
+                if self._final_endpoint == end_point:
+                    return x
 
         x = self.logits(self.dropout(self.avg_pool(x)))
         if self._spatial_squeeze:
