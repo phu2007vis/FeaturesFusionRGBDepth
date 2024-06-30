@@ -32,12 +32,20 @@ class MF_fusion(nn.Module):
         logits = features.squeeze(3).squeeze(3)
         logits = torch.mean(logits,dim=-1).squeeze()
         return logits
+    def load_weight(self,model_path):
+        state_dict  = torch.load(model_path,map_location='cpu')
+        
+        import pdb;pdb.set_trace()
+        self.load_state_dict(state_dict)
 
 if __name__ == "__main__":
-    model = MF_fusion(300)
+    model = MF_fusion(119)
+    model_path = "/work/21013187/SignLanguageRGBD/all_code/results/middle_fusion-72/27-15-22-47/middle_fusion-72_best.pt"
+    model  = torch.load(model_path,map_location='cpu')
+ 
     rgb = torch.randn(2,3,64,224,224)
     depth = torch.rand(2,1,64,224,224)
     inputs = (rgb,depth)
-    
+    print(model(inputs).shape)
         
         

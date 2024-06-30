@@ -179,5 +179,5 @@ if __name__ == "__main__":
     #     with tqdm(total=max_) as pbar:
     #         for _ in p.imap_unordered(_foo, range(0, max_)):
     #             pbar.update(1)
-    folder_path = "/work/21013187/SignLanguageRGBD/data/ver2_all_rgb_only"
+    folder_path = "/work/21013187/SignLanguageRGBD/data/76-100/data"
     extract_all_folder(folder_path,False,safe_mode=False)

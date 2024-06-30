@@ -35,6 +35,7 @@ def get_i3d_depth_model(name,num_classes,fintuning = -1):
     for param in model .parameters():
         total_params += param.numel()
     print(f"Model {name} has {total_params} parameters!")
+    return model
         
     
    

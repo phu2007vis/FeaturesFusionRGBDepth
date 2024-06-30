@@ -1,9 +1,10 @@
 import os
 from typing import List
-
+import pandas as pd
 import cv2
 import numpy as np
 import torch
+import matplotlib.pyplot as plt
 
 def save_frames_as_video(frames: List[np.ndarray],
                          output_path: str,
@@ -127,3 +128,44 @@ def visualize_pose(dataloader: torch.utils.data.DataLoader,
             save_frames_as_video(video_list, output_path, fps=fps)
             if num_visalize <= count:
                 exit()
+
+def get_loss_list(folder_result):
+    train_loss_file = os.path.join(folder_result,'train_loss.csv')
+    valid_loss_file = os.path.join(folder_result,'valid_loss.csv')
+    train_loss_y = pd.read_csv(train_loss_file).iter.values
+    
+    number_train_loss_iter= len(train_loss_y)
+    train_loss_x = range(number_train_loss_iter)
+    
+    valid_loss_y  = pd.read_csv(valid_loss_file)
+    valid_loss_y = valid_loss_y[valid_loss_y.iter <=6.]
+    valid_loss_y = valid_loss_y.iter.values
+    number_valid_loss_iter= len(valid_loss_y)
+    valid_loss_x = range(0,number_train_loss_iter +number_valid_loss_iter+1 ,number_train_loss_iter//number_valid_loss_iter)
+    valid_loss_x = valid_loss_x[:number_valid_loss_iter]
+   
+    return train_loss_x,train_loss_y,valid_loss_x,valid_loss_y
+    
+    
+    
+def plot_loss(folder_result):
+    train_loss_x, train_loss_y, valid_loss_x, valid_loss_y = get_loss_list(folder_result)
+    
+    fig, ax = plt.subplots()
+    ax.plot(train_loss_x, train_loss_y, label='Training Loss')
+    ax.plot(valid_loss_x, valid_loss_y, label='Validation Loss')
+    
+    ax.set_xlabel('Iteration')
+    ax.set_ylabel('Loss')
+    ax.set_title('Training and Validation Loss')
+    ax.legend()
+    
+    # Save the figure as loss_plot.png in the same folder as the result
+    save_path = os.path.join(folder_result, 'loss_plot.png')
+    plt.savefig(save_path)
+
+
+
+
+if __name__ == "__main__":
+    plot_loss('/work/21013187/SignLanguageRGBD/all_code/results/i3d-72/29-20-46-30')

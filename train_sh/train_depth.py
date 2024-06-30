@@ -39,7 +39,7 @@ def handle_exception(exc_type, exc_value, exc_traceback):
     # Call the default handler
     sys.__excepthook__(exc_type, exc_value, exc_traceback)
 sys.excepthook = handle_exception
-def evaluate(model,model_name,dataloader,loss_fn,steps,class_info,ep,device = 'cuda',pbar = True):
+def evaluate(model,model_name,dataloader,loss_fn,steps,class_info,ep,device ,pbar = True):
     model.eval()
     logits = []
     current_loss = 0
@@ -48,15 +48,14 @@ def evaluate(model,model_name,dataloader,loss_fn,steps,class_info,ep,device = 'c
         data_iter = tqdm(dataloader,desc = "Evaluating") if pbar else dataloader
      
         for data in data_iter:
-            
-            if model_name != 'lstm':
-                inputs, labels = data
-                inputs = inputs.to(device)
-            else:
-                x_time,x_spatial ,labels = data
-                inputs = (x_time.to(device),x_spatial.to(device))
-                
+            inputs, labels = data
             labels = labels.to(device)
+            inputs = inputs.to(device)
+            
+            if model_name != 'i3d':
+                rgb = inputs[:,:3,...]
+                depth = inputs[:,-1:,...]
+                inputs = (rgb,depth)
             
             per_frame_logits = model(inputs)
             current_loss += loss_fn(per_frame_logits,labels).cpu().item()
@@ -159,8 +158,8 @@ def run(
     if len(pretrained_path):
         model_state_dict= torch.load(pretrained_path,map_location=device)
         model.load_state_dict(model_state_dict)
-    model = nn.DataParallel(model)
-
+    # model = nn.DataParallel(model)
+    # model.fintuning_all()
     print(f"Train on {device}")
     print(f"Model name {model_name} ")
     
@@ -179,7 +178,8 @@ def run(
         for phase in ['train','val']:
             
             if phase == 'train':
-                
+                if epoch > 100:
+                    model.fintuning_all()
                 lr = optimizer.param_groups[0]['lr']
                 optimizer.zero_grad()
                 model.train()
@@ -200,7 +200,7 @@ def run(
                     
                     if model_name != 'i3d':
                         rgb = inputs[:,:3,...]
-                        depth = inputs[:,-1:a,...]
+                        depth = inputs[:,-1:,...]
                         inputs = (rgb,depth)
 
                     
@@ -243,7 +243,7 @@ def run(
                                 best_valid_loss = current_valid_loss
                                 
                     
-                torch.save(model,save_model+"last.pt")
+                torch.save(model.state_dict(),save_model+"last.pt")
                         
                 # if (epoch+1) % learnig_scheduler_step == 0:
                 #     learning_scheduler.step()
@@ -284,10 +284,10 @@ if True:
     # need to add argparse
     parser = argparse.ArgumentParser()
     # model name s3d or i3d
-    parser.add_argument("--model_name",type=str,default="middle_fusion",help='i3d')
+    parser.add_argument("--model_name",type=str,default="late_fusion",help='i3d')
     parser.add_argument("--in_channles",type=int,default=4)
     parser.add_argument("--pretrained",type=str,default='')
-    parser.add_argument("--device",type=str,default="cuda")
+    parser.add_argument("--device",type=str,default="cuda:3")
     parser.add_argument('-r', '--root', type=str, help='root directory of the dataset', default=r"/work/21013187/SignLanguageRGBD/ViSLver2/Processed")
     parser.add_argument('--learnig_scheduler_gammar',type=float,default=0.7 ,help='decrease the learning rate by 0.6')
     parser.add_argument('--learnig_scheduler_step',type=int ,default=15)
@@ -297,11 +297,11 @@ if True:
     parser.add_argument('-c', '--cache', type=str, help='cache directory', default=None)
     parser.add_argument('--seed', type=int, help='seed', default=42)
     parser.add_argument('--a_config', type=str, help='spatial augumentation config', default="train_sh/config/spatial_augument_config.yaml")
-    parser.add_argument('--lr',type=float,default =0.005, help='init learning rate')
+    parser.add_argument('--lr',type=float,default =0.001, help='init learning rate')
     parser.add_argument('--epochs', type=int, help='number of training epochs', default=600)
-    parser.add_argument('--batch_size', type=int, help='batch_size', default=8)
+    parser.add_argument('--batch_size', type=int, help='batch_size', default=9)
     parser.add_argument('--num_workers', type=int, help='number of cpu load data', default=8)
-    parser.add_argument('--evaluate_frequently', type=int, help='number of cpu load data', default=200)
+    parser.add_argument('--evaluate_frequently', type=int, help='number of cpu load data', default=180)
     parser.add_argument('--num_gradient_per_update', type=int, help='number of cpu load data', default=20)
     parser.add_argument('--fintuning',type = int, default = -1)
   
@@ -322,8 +322,8 @@ if True:
     print(f"Evaluate frequently: {evaluate_frequently}")
     print(f"Num gradient per update: {num_gradient_per_update}")
     
-    # name = f"{model_name}-{n_frames}"
-    name = 'test'
+    name = f"{model_name}-{n_frames}"
+    # name = 'test'
     elog = ev.Eval(run_name=name)
     
     run(

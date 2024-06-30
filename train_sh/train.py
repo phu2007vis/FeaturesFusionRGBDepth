@@ -288,10 +288,10 @@ if True:
     # need to add argparse
     parser = argparse.ArgumentParser()
     # model name s3d or i3d
-    parser.add_argument("--model_name",type=str,default="s3d",help='i3d or s3d or lstm')
+    parser.add_argument("--model_name",type=str,default="i3d",help='i3d or s3d or lstm')
     parser.add_argument("--pretrained",type=str,default='')
     parser.add_argument("--device",type=str,default="cuda")
-    parser.add_argument('-r', '--root', type=str, help='root directory of the dataset', default=r"/work/21013187/SignLanguageRGBD/data/76-100/data")
+    parser.add_argument('-r', '--root', type=str, help='root directory of the dataset', default=r"/work/21013187/SignLanguageRGBD/data/test_data")
     parser.add_argument('--learnig_scheduler_gammar',type=float,default=0.7 ,help='decrease the learning rate by 0.6')
     parser.add_argument('--learnig_scheduler_step',type=int ,default=15)
     parser.add_argument('-n', '--n_frames', type=int, help='n frame', default= 72)
@@ -302,10 +302,10 @@ if True:
     parser.add_argument('--a_config', type=str, help='spatial augumentation config', default="train_sh/config/spatial_augument_config.yaml")
     parser.add_argument('--lr',type=float,default =0.005, help='init learning rate')
     parser.add_argument('--epochs', type=int, help='number of training epochs', default=270)
-    parser.add_argument('--batch_size', type=int, help='batch_size', default=8)
+    parser.add_argument('--batch_size', type=int, help='batch_size', default=5)
     parser.add_argument('--num_workers', type=int, help='number of cpu load data', default=8)
     parser.add_argument('--evaluate_frequently', type=int, help='number of cpu load data', default=200)
-    parser.add_argument('--num_gradient_per_update', type=int, help='number of cpu load data', default=20)
+    parser.add_argument('--num_gradient_per_update', type=int, help='number of cpu load data', default=25)
     parser.add_argument('--fintuning',type = int, default = -1)
   
     args = parser.parse_args()
