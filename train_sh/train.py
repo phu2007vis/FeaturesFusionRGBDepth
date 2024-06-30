@@ -55,8 +55,8 @@ def evaluate(model,model_name,dataloader,loss_fn,steps,class_info,ep,device = 'c
             else:
                 x_time,x_spatial ,labels = data
                 inputs = (x_time.to(device),x_spatial.to(device))
-            if labels.shape[0] ==1:
-                continue
+            # if labels.shape[0] ==1:
+            #     continue
             labels = labels.to(device)
             
             
