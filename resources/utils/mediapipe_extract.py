@@ -54,6 +54,7 @@ def extract_one_file(video_path,save_path):
     landmark_list = []
     for frame in video_list:
         pose = detectPose(frame)
+        
         if pose is not None:
             landmark_list.append(pose)
     if len(landmark_list) > 20:
@@ -64,7 +65,7 @@ def extract_one_file(video_path,save_path):
             os.remove(save_path)
         except:
             pass
-    
+   
 def extract_one_file_paralel(param):
     video_path,save_path = param
     video_list = video_loader(video_path)
@@ -179,5 +180,5 @@ if __name__ == "__main__":
     #     with tqdm(total=max_) as pbar:
     #         for _ in p.imap_unordered(_foo, range(0, max_)):
     #             pbar.update(1)
-    folder_path = "/work/21013187/SignLanguageRGBD/data/76-100/data"
+    folder_path = "/work/21013187/SignLanguageRGBD/data/A51_76/lai"
     extract_all_folder(folder_path,False,safe_mode=False)

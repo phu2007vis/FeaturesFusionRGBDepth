@@ -154,10 +154,23 @@ def run(
     # exit()
   
     model = get_i3d_depth_model(model_name,num_classes)
+  
     model.to(device)
+    model.eval()
+    
+   
     if len(pretrained_path):
-        model_state_dict= torch.load(pretrained_path,map_location=device)
-        model.load_state_dict(model_state_dict)
+        if model_name == "middle_fusion":
+            model_state_dict= torch.load(pretrained_path,map_location=device)
+            model.depth_branch.logits = nn.Conv3d(1024,157,1,1)
+            model.load_state_dict(model_state_dict,strict=False)
+            # model = torch.load(pretrained_path)
+            model.fintuning_all()
+        elif model_name == "late_fusion":
+            model_state_dict= torch.load(pretrained_path,map_location=device)
+            model.load_state_dict(model_state_dict,strict=False)
+            # model = torch.load(pretrained_path)
+            model.fintuning_all()
     # model = nn.DataParallel(model)
     # model.fintuning_all()
     print(f"Train on {device}")
@@ -239,14 +252,10 @@ def run(
                             pbar.set_postfix_str(f"Valid loss: {round(current_valid_loss,2)}")
                             
                             if current_valid_loss < best_valid_loss:
-                                torch.save(model.state_dict(),save_model+"best.pt")
-                                best_valid_loss = current_valid_loss
-                                
+                                torch.save(model,save_model+"best.pt")
+                                best_valid_loss = current_valid_loss           
                     
-                torch.save(model.state_dict(),save_model+"last.pt")
-                        
-                # if (epoch+1) % learnig_scheduler_step == 0:
-                #     learning_scheduler.step()
+                torch.save(model,save_model+"last.pt")
           
             if phase == 'val':
                 current_valid_loss = evaluate(model,model_name,dataloaders['val'],loss_fn,steps,class_info,ep = epoch,device=device)
@@ -284,10 +293,10 @@ if True:
     # need to add argparse
     parser = argparse.ArgumentParser()
     # model name s3d or i3d
-    parser.add_argument("--model_name",type=str,default="late_fusion",help='i3d')
+    parser.add_argument("--model_name",type=str,default="i3d",help='i3d')
     parser.add_argument("--in_channles",type=int,default=4)
     parser.add_argument("--pretrained",type=str,default='')
-    parser.add_argument("--device",type=str,default="cuda:3")
+    parser.add_argument("--device",type=str,default="cuda")
     parser.add_argument('-r', '--root', type=str, help='root directory of the dataset', default=r"/work/21013187/SignLanguageRGBD/ViSLver2/Processed")
     parser.add_argument('--learnig_scheduler_gammar',type=float,default=0.7 ,help='decrease the learning rate by 0.6')
     parser.add_argument('--learnig_scheduler_step',type=int ,default=15)
@@ -297,7 +306,7 @@ if True:
     parser.add_argument('-c', '--cache', type=str, help='cache directory', default=None)
     parser.add_argument('--seed', type=int, help='seed', default=42)
     parser.add_argument('--a_config', type=str, help='spatial augumentation config', default="train_sh/config/spatial_augument_config.yaml")
-    parser.add_argument('--lr',type=float,default =0.001, help='init learning rate')
+    parser.add_argument('--lr',type=float,default =0.0005, help='init learning rate')
     parser.add_argument('--epochs', type=int, help='number of training epochs', default=600)
     parser.add_argument('--batch_size', type=int, help='batch_size', default=9)
     parser.add_argument('--num_workers', type=int, help='number of cpu load data', default=8)
@@ -322,8 +331,8 @@ if True:
     print(f"Evaluate frequently: {evaluate_frequently}")
     print(f"Num gradient per update: {num_gradient_per_update}")
     
-    name = f"{model_name}-{n_frames}"
-    # name = 'test'
+    # name = f"{model_name}-{n_frames}"
+    name = 'test_time'
     elog = ev.Eval(run_name=name)
     
     run(

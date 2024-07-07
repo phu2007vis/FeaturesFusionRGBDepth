@@ -63,7 +63,7 @@ class Eval:
         matrix = metrics.confusion_matrix(labels, predicted, normalize=normalize)
 
     
-        display = metrics.ConfusionMatrixDisplay(confusion_matrix=matrix,display_labels=class_names)
+        display = metrics.ConfusionMatrixDisplay(confusion_matrix=matrix,display_labels=class_names[:matrix.shape[0]])
         fig, ax = plt.subplots(figsize=(30,30))
         display.plot(ax=ax,cmap='Blues', values_format='.2f' if normalize else 'd')
         # Remove the values in the confusion matrix

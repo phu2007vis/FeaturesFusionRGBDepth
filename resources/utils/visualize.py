@@ -168,4 +168,4 @@ def plot_loss(folder_result):
 
 
 if __name__ == "__main__":
-    plot_loss('/work/21013187/SignLanguageRGBD/all_code/results/i3d-72/29-20-46-30')
+    plot_loss("/work/21013187/SignLanguageRGBD/all_code/results/lstm-72/04-15-18-49")

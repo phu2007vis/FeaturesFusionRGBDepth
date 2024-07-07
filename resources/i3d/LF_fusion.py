@@ -40,7 +40,8 @@ class LF_fusion(nn.Module):
         depth_feature_logits = self.depth_branch(depth).unsqueeze(-1)
         logits = torch.cat([rgb_feature_logits,depth_feature_logits],dim  = -1)
         return torch.mean(logits,-1).squeeze()
-
+    
+    
 if __name__ == "__main__":
     model = LF_fusion(119)
     rgb = torch.randn(2,3,64,224,224)

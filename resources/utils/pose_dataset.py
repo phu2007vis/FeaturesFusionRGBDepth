@@ -190,6 +190,7 @@ class DSL:
             batch_path = os.path.join(self.dataset_path, batch)
             
             class_ = batch.split('P')[0]
+            print(batch_path)
             person_ = batch.split('P')[1]
 
             mapped_class = self.map[class_]

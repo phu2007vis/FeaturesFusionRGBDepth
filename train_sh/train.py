@@ -55,8 +55,7 @@ def evaluate(model,model_name,dataloader,loss_fn,steps,class_info,ep,device = 'c
             else:
                 x_time,x_spatial ,labels = data
                 inputs = (x_time.to(device),x_spatial.to(device))
-            # if labels.shape[0] ==1:
-            #     continue
+            
             labels = labels.to(device)
             
             
@@ -164,7 +163,7 @@ def run(
     if len(pretrained_path):
         model_state_dict= torch.load(pretrained_path,map_location=device)
         model.load_state_dict(model_state_dict)
-    model = nn.DataParallel(model)
+ 
     print(f"Train on {device}")
     print(f"Model name {model_name} ")
     
@@ -216,7 +215,7 @@ def run(
                         
                         #caculate gradient 
                         loss.backward()
-                        # import pdb;pdb.set_trace()
+
                         
                         #convert to float and add to total loss
                         tot_loss += loss.data.item()
@@ -285,14 +284,14 @@ def run(
 
 
 
-if True:
+if __name__ == "__main__":
     # need to add argparse
     parser = argparse.ArgumentParser()
     # model name s3d or i3d
-    parser.add_argument("--model_name",type=str,default="i3d",help='i3d or s3d or lstm')
+    parser.add_argument("--model_name",type=str,default="lstm",help='i3d or s3d or lstm')
     parser.add_argument("--pretrained",type=str,default='')
-    parser.add_argument("--device",type=str,default="cuda")
-    parser.add_argument('-r', '--root', type=str, help='root directory of the dataset', default=r"/work/21013187/SignLanguageRGBD/data/test_data")
+    parser.add_argument("--device",type=str,default="cuda:3")
+    parser.add_argument('-r', '--root', type=str, help='root directory of the dataset', default=r"/work/21013187/SignLanguageRGBD/data/A51_76/lai")
     parser.add_argument('--learnig_scheduler_gammar',type=float,default=0.7 ,help='decrease the learning rate by 0.6')
     parser.add_argument('--learnig_scheduler_step',type=int ,default=15)
     parser.add_argument('-n', '--n_frames', type=int, help='n frame', default= 72)
@@ -301,9 +300,9 @@ if True:
     parser.add_argument('-c', '--cache', type=str, help='cache directory', default=None)
     parser.add_argument('--seed', type=int, help='seed', default=42)
     parser.add_argument('--a_config', type=str, help='spatial augumentation config', default="train_sh/config/spatial_augument_config.yaml")
-    parser.add_argument('--lr',type=float,default =0.005, help='init learning rate')
+    parser.add_argument('--lr',type=float,default =0.001, help='init learning rate')
     parser.add_argument('--epochs', type=int, help='number of training epochs', default=270)
-    parser.add_argument('--batch_size', type=int, help='batch_size', default=5)
+    parser.add_argument('--batch_size', type=int, help='batch_size', default=9)
     parser.add_argument('--num_workers', type=int, help='number of cpu load data', default=8)
     parser.add_argument('--evaluate_frequently', type=int, help='number of cpu load data', default=200)
     parser.add_argument('--num_gradient_per_update', type=int, help='number of cpu load data', default=25)

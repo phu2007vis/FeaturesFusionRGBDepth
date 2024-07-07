@@ -38,9 +38,9 @@ class LSTMModel(nn.Module):
         self.num_layers = numlayers
         self.hidden_size = hidden_size
         self.lstm_time  = nn.LSTM(num_keypoints, hidden_size, numlayers, batch_first=True)
-        self.lstm_spatial = nn.LSTM(n_frames, hidden_size, numlayers, batch_first=True)
-        self.cross_attention_module = PCrossAttentionModule(hidden_size,num_attention_layers,num_head_attention,dropout,activate)
-        self.position_embeding = PositionalEncoding(hidden_size)
+        # self.lstm_spatial = nn.LSTM(n_frames, hidden_size, numlayers, batch_first=True)
+        # self.cross_attention_module = PCrossAttentionModule(hidden_size,num_attention_layers,num_head_attention,dropout,activate)
+        # self.position_embeding = PositionalEncoding(hidden_size)
         self.mlp  = MLP([hidden_size,num_classes],0)
         
         self.mlp.mlp_main[0].linear_layer_main[1] = nn.Identity()
