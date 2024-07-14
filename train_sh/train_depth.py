@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from tqdm import tqdm
-import resources.utils.rgb_depth_dataset as dsl
+import resources.utils.heatmap_depth_dataset as dsl
 import resources.utils.pose_dataset as pose_dsl
 import random
 import datetime
@@ -52,18 +52,18 @@ def evaluate(model,model_name,dataloader,loss_fn,steps,class_info,ep,device ,pba
             labels = labels.to(device)
             inputs = inputs.to(device)
             
-            if model_name != 'i3d':
+            if model_name not in ['i3d','lower_fusion']:
                 rgb = inputs[:,:3,...]
                 depth = inputs[:,-1:,...]
                 inputs = (rgb,depth)
-            
-            per_frame_logits = model(inputs)
-            current_loss += loss_fn(per_frame_logits,labels).cpu().item()
-            logit = per_frame_logits.max(-1)[1].cpu().numpy()
-            labels = (labels.to(device).cpu().max(1)[1]).numpy()
-                
-            for i in range(len(logit)):
-                logits.append([logit[i], labels[i]])
+            if labels.shape[0] != 1:
+                per_frame_logits = model(inputs)
+                current_loss += loss_fn(per_frame_logits,labels).cpu().item()
+                logit = per_frame_logits.max(-1)[1].cpu().numpy()
+                labels = (labels.to(device).cpu().max(1)[1]).numpy()
+                    
+                for i in range(len(logit)):
+                    logits.append([logit[i], labels[i]])
         
         elog.evaluate('val',steps,logits,class_info)
     current_loss = current_loss/(len(dataloader))
@@ -189,7 +189,7 @@ def run(
     for epoch in range(max_steps):#for epoch in range(num_epochs):
         # Each epoch has a training and validation phase
         for phase in ['train','val']:
-            
+            optimizer.zero_grad()
             if phase == 'train':
                 if epoch > 100:
                     model.fintuning_all()
@@ -211,23 +211,24 @@ def run(
                     labels = labels.to(device)
                     inputs = inputs.to(device)
                     
-                    if model_name != 'i3d':
+                    
+                    if model_name not in  ['i3d','lower_fusion']:
                         rgb = inputs[:,:3,...]
                         depth = inputs[:,-1:,...]
                         inputs = (rgb,depth)
 
+                    if labels.shape[0] != 1:
+                        
+                        per_frame_logits = model(inputs)
                     
-                    per_frame_logits = model(inputs)
-                    
-                    #caculate loss
-                    loss = loss_fn(per_frame_logits,labels)/num_gradient_per_update    
-                    
-                    #caculate gradient 
-                    loss.backward()
-                    # import pdb;pdb.set_trace()
-                    
-                    #convert to float and add to total loss
-                    tot_loss += loss.data.item()
+                        loss = loss_fn(per_frame_logits,labels)/num_gradient_per_update    
+                        
+                        #caculate gradient 
+                        loss.backward()
+                        # import pdb;pdb.set_trace()
+                        
+                        #convert to float and add to total loss
+                        tot_loss += loss.data.item()
                     
                     # update each num_steps_per_update batch
                     if num_iter == num_gradient_per_update :
@@ -293,10 +294,10 @@ if True:
     # need to add argparse
     parser = argparse.ArgumentParser()
     # model name s3d or i3d
-    parser.add_argument("--model_name",type=str,default="i3d",help='i3d')
+    parser.add_argument("--model_name",type=str,default="late_fusion",help='i3d')
     parser.add_argument("--in_channles",type=int,default=4)
-    parser.add_argument("--pretrained",type=str,default='')
-    parser.add_argument("--device",type=str,default="cuda")
+    parser.add_argument("--pretrained",type=str,default='/work/21013187/SignLanguageRGBD/all_code/results/late_fusion-72/30-07-54-09/late_fusion-72_best.pt')
+    parser.add_argument("--device",type=str,default="cuda:3")
     parser.add_argument('-r', '--root', type=str, help='root directory of the dataset', default=r"/work/21013187/SignLanguageRGBD/ViSLver2/Processed")
     parser.add_argument('--learnig_scheduler_gammar',type=float,default=0.7 ,help='decrease the learning rate by 0.6')
     parser.add_argument('--learnig_scheduler_step',type=int ,default=15)
@@ -332,7 +333,7 @@ if True:
     print(f"Num gradient per update: {num_gradient_per_update}")
     
     # name = f"{model_name}-{n_frames}"
-    name = 'test_time'
+    name = 'test_heatmap'
     elog = ev.Eval(run_name=name)
     
     run(

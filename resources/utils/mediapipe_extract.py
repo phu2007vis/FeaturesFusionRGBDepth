@@ -49,6 +49,18 @@ def detectPose(image):
     else: 
         return None
     return landmarks
+def extract_video_pose(video):
+    
+    landmark_list = []
+    for frame in video:
+        pose = detectPose(frame)
+        
+        if pose is not None:
+            landmark_list.append(pose)
+    
+    return np.array(landmark_list)
+      
+  
 def extract_one_file(video_path,save_path):
     video_list = video_loader(video_path)
     landmark_list = []

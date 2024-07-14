@@ -63,12 +63,9 @@ def visualize_rgb(dataloader: torch.utils.data.DataLoader,
                 exit()
 def visualize_poses_from_result(numpy_result,
                                 frame_size = 224,
-                                shift_top = 0.2,
+                                shift_top = 0.1,
                                 shift_left = 0.2):
 
-    # Load numpy result
-    
-    
     list_frame = []
     # Iterate over frames
     for i in range(numpy_result.shape[0]):
@@ -164,8 +161,20 @@ def plot_loss(folder_result):
     save_path = os.path.join(folder_result, 'loss_plot.png')
     plt.savefig(save_path)
 
-
-
+def visualize_heatmap(video_path):
+    from resources.utils.data_prepareation import video_loader
+    from resources.utils.heatmap_preparation import draw_all_heatmap
+    from resources.utils.mediapipe_extract import extract_video_pose
+    import numpy as np
+    frame_list = video_loader(video_path)
+    pose_list = visualize_poses_from_result(extract_video_pose(frame_list))
+    all_list = []
+    for i,frame in enumerate(frame_list):
+        heatmap = draw_all_heatmap(frame)
+        new_frame = np.hstack([frame,heatmap,pose_list[i]])
+        all_list.append(new_frame)
+        
+    save_frames_as_video(all_list,'/work/21013187/SignLanguageRGBD/test_pose.mp4')
 
 if __name__ == "__main__":
-    plot_loss("/work/21013187/SignLanguageRGBD/all_code/results/lstm-72/04-15-18-49")
+    visualize_heatmap("/work/21013187/SignLanguageRGBD/data/76-100/76_81/A78P18/rgb/53_A78P18_.avi")

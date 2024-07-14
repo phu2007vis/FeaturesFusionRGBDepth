@@ -37,7 +37,9 @@ def video_loader(video_path, short_size = 224):
     while success:
         success, image = vidcap.read()
         if not success: break
-        video.append(resize_img(image, short_size))
+        if short_size:
+            image = resize_img(image, short_size)
+        video.append(image)
     vidcap.release()
     return video
 

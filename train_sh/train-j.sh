@@ -11,6 +11,6 @@ cd /work/21013187/SignLanguageRGBD/all_code
 module load python 
 module load cuda
 nvidia-smi
-python /work/21013187/SignLanguageRGBD/all_code/train_sh/train.py --device="cuda:2"
+python /work/21013187/SignLanguageRGBD/all_code/train_sh/train_depth.py --device='cuda:3'
 
 

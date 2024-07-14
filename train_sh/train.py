@@ -289,7 +289,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     # model name s3d or i3d
     parser.add_argument("--model_name",type=str,default="lstm",help='i3d or s3d or lstm')
-    parser.add_argument("--pretrained",type=str,default='')
+    parser.add_argument("--pretrained",type=str,default='/work/21013187/SignLanguageRGBD/all_code/results/late_fusion-72/30-07-54-09/late_fusion-72_best.pt')
     parser.add_argument("--device",type=str,default="cuda:3")
     parser.add_argument('-r', '--root', type=str, help='root directory of the dataset', default=r"/work/21013187/SignLanguageRGBD/data/A51_76/lai")
     parser.add_argument('--learnig_scheduler_gammar',type=float,default=0.7 ,help='decrease the learning rate by 0.6')
