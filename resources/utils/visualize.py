@@ -177,4 +177,5 @@ def visualize_heatmap(video_path):
     save_frames_as_video(all_list,'/work/21013187/SignLanguageRGBD/test_pose.mp4')
 
 if __name__ == "__main__":
-    visualize_heatmap("/work/21013187/SignLanguageRGBD/data/76-100/76_81/A78P18/rgb/53_A78P18_.avi")
+    # visualize_heatmap("/work/21013187/SignLanguageRGBD/all_code/results/i3d-72/14-13-47-27")
+    plot_loss("/work/21013187/SignLanguageRGBD/all_code/results/i3d-72/14-13-47-27")

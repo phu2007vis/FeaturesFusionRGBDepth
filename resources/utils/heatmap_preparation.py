@@ -139,7 +139,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '--data_root',
         type=str,
-        default=r"/work/21013187/SignLanguageRGBD/ViSLver2/Processed",
+        default=r"/work/21013187/SignLanguageRGBD/data/ver2_all_rgb_only",
         help='Where you want to save the output input_folder')
     # Sample arguments
     parser.add_argument(

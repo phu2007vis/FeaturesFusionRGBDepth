@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from tqdm import tqdm
-import resources.utils.heatmap_dataset as dsl
+import resources.utils.heatmap_depth_dataset as dsl
 import resources.utils.pose_dataset as pose_dsl
 import random
 import datetime
@@ -15,7 +15,7 @@ import yaml
 import logging.handlers
 import matplotlib.pyplot as plt
 from resources.utils import *
-from resources import get_model
+from resources import get_model,get_i3d_depth_model
 
 
 
@@ -39,7 +39,7 @@ def handle_exception(exc_type, exc_value, exc_traceback):
     # Call the default handler
     sys.__excepthook__(exc_type, exc_value, exc_traceback)
 sys.excepthook = handle_exception
-def evaluate(model,model_name,dataloader,loss_fn,steps,class_info,ep,device = 'cuda',pbar = True):
+def evaluate(model,model_name,dataloader,loss_fn,steps,class_info,ep,device ,pbar = True):
     model.eval()
     logits = []
     current_loss = 0
@@ -48,24 +48,22 @@ def evaluate(model,model_name,dataloader,loss_fn,steps,class_info,ep,device = 'c
         data_iter = tqdm(dataloader,desc = "Evaluating") if pbar else dataloader
      
         for data in data_iter:
-            
-            if model_name != 'lstm':
-                inputs, labels = data
-                inputs = inputs.to(device)
-            else:
-                x_time,x_spatial ,labels = data
-                inputs = (x_time.to(device),x_spatial.to(device))
-            
+            inputs, labels = data
             labels = labels.to(device)
+            inputs = inputs.to(device)
             
-            
-            per_frame_logits = model(inputs)
-            current_loss += loss_fn(per_frame_logits,labels).cpu().item()
-            logit = per_frame_logits.max(-1)[1].cpu().numpy()
-            labels = (labels.to(device).cpu().max(1)[1]).numpy()
-                
-            for i in range(len(logit)):
-                logits.append([logit[i], labels[i]])
+            if model_name not in ['i3d','lower_fusion']:
+                rgb = inputs[:,:3,...]
+                depth = inputs[:,-1:,...]
+                inputs = (rgb,depth)
+            if labels.shape[0] != 1:
+                per_frame_logits = model(inputs)
+                current_loss += loss_fn(per_frame_logits,labels).cpu().item()
+                logit = per_frame_logits.max(-1)[1].cpu().numpy()
+                labels = (labels.to(device).cpu().max(1)[1]).numpy()
+                    
+                for i in range(len(logit)):
+                    logits.append([logit[i], labels[i]])
         
         elog.evaluate('val',steps,logits,class_info)
     current_loss = current_loss/(len(dataloader))
@@ -150,20 +148,28 @@ def run(
     dataloaders = {'train': train_dl, 'val': val_dl, 'test': test_dl}
     num_classes = len(dataset.get_classes())
 
-    
-    #turn on this for visualize
-    # visualize_pose(train_dl,"visualize",percent_visualize=0.5)
-    # exit()
-    # visualize_rgb(train_dl,"visualize",percent_visualize=0.2)
-    # exit()
   
-
-    model = get_model(model_name,num_classes,num_keypoints = num_keypoints,n_frames = n_frames,**kwargs)
+  
+    model = get_i3d_depth_model(model_name,num_classes)
+  
     model.to(device)
+    model.eval()
+    
+   
     if len(pretrained_path):
-        model_state_dict= torch.load(pretrained_path,map_location=device)
-        model.load_state_dict(model_state_dict)
- 
+        if model_name == "middle_fusion":
+            model_state_dict= torch.load(pretrained_path,map_location=device)
+            model.depth_branch.logits = nn.Conv3d(1024,157,1,1)
+            model.load_state_dict(model_state_dict,strict=False)
+            # model = torch.load(pretrained_path)
+            model.fintuning_all()
+        elif model_name == "late_fusion":
+            model_state_dict= torch.load(pretrained_path,map_location=device)
+            model.load_state_dict(model_state_dict,strict=False)
+            # model = torch.load(pretrained_path)
+            model.fintuning_all()
+    # model = nn.DataParallel(model)
+    # model.fintuning_all()
     print(f"Train on {device}")
     print(f"Model name {model_name} ")
     
@@ -180,9 +186,10 @@ def run(
     for epoch in range(max_steps):#for epoch in range(num_epochs):
         # Each epoch has a training and validation phase
         for phase in ['train','val']:
-            
+            optimizer.zero_grad()
             if phase == 'train':
-                #get current learning rate
+                if epoch > 100:
+                    model.fintuning_all()
                 lr = optimizer.param_groups[0]['lr']
                 optimizer.zero_grad()
                 model.train()
@@ -197,25 +204,25 @@ def run(
                 for index ,data in pbar:
                     
                     num_iter += 1
-                    if model_name != 'lstm':
-                        inputs, labels = data
-                        inputs = inputs.to(device)
-                    else:
-                        x_time,x_spatial ,labels = data
-                        inputs = (x_time.to(device),x_spatial.to(device))
-                
-                    # move to device ('cpu' or 'gpu' - 'cuda' )
-                    if labels.shape[0] !=1:
-                        labels = labels.to(device)
-                     
-                        per_frame_logits = model(inputs)
+                    inputs, labels = data
+                    labels = labels.to(device)
+                    inputs = inputs.to(device)
+                    
+                    
+                    if model_name not in  ['i3d','lower_fusion']:
+                        rgb = inputs[:,:3,...]
+                        depth = inputs[:,-1:,...]
+                        inputs = (rgb,depth)
+
+                    if labels.shape[0] != 1:
                         
-                        #caculate loss
+                        per_frame_logits = model(inputs)
+                    
                         loss = loss_fn(per_frame_logits,labels)/num_gradient_per_update    
                         
                         #caculate gradient 
                         loss.backward()
-
+                        # import pdb;pdb.set_trace()
                         
                         #convert to float and add to total loss
                         tot_loss += loss.data.item()
@@ -243,14 +250,10 @@ def run(
                             pbar.set_postfix_str(f"Valid loss: {round(current_valid_loss,2)}")
                             
                             if current_valid_loss < best_valid_loss:
-                                torch.save(model.state_dict(),save_model+"best.pt")
-                                best_valid_loss = current_valid_loss
-                                
+                                torch.save(model,save_model+"best.pt")
+                                best_valid_loss = current_valid_loss           
                     
                 torch.save(model,save_model+"last.pt")
-                        
-                # if (epoch+1) % learnig_scheduler_step == 0:
-                #     learning_scheduler.step()
           
             if phase == 'val':
                 current_valid_loss = evaluate(model,model_name,dataloaders['val'],loss_fn,steps,class_info,ep = epoch,device=device)
@@ -284,12 +287,13 @@ def run(
 
 
 
-if __name__ == "__main__":
+if True:
     # need to add argparse
     parser = argparse.ArgumentParser()
     # model name s3d or i3d
-    parser.add_argument("--model_name",type=str,default="i3d",help='i3d or s3d or lstm')
-    parser.add_argument("--pretrained",type=str,default='')
+    parser.add_argument("--model_name",type=str,default="late_fusion",help='i3d')
+    parser.add_argument("--in_channles",type=int,default=4)
+    parser.add_argument("--pretrained",type=str,default='/work/21013187/SignLanguageRGBD/all_code/results/late_fusion-72/30-07-54-09/late_fusion-72_best.pt')
     parser.add_argument("--device",type=str,default="cuda:3")
     parser.add_argument('-r', '--root', type=str, help='root directory of the dataset', default=r"/work/21013187/SignLanguageRGBD/ViSLver2/Processed")
     parser.add_argument('--learnig_scheduler_gammar',type=float,default=0.7 ,help='decrease the learning rate by 0.6')
@@ -300,17 +304,17 @@ if __name__ == "__main__":
     parser.add_argument('-c', '--cache', type=str, help='cache directory', default=None)
     parser.add_argument('--seed', type=int, help='seed', default=42)
     parser.add_argument('--a_config', type=str, help='spatial augumentation config', default="train_sh/config/spatial_augument_config.yaml")
-    parser.add_argument('--lr',type=float,default =0.001, help='init learning rate')
-    parser.add_argument('--epochs', type=int, help='number of training epochs', default=270)
+    parser.add_argument('--lr',type=float,default =0.0005, help='init learning rate')
+    parser.add_argument('--epochs', type=int, help='number of training epochs', default=600)
     parser.add_argument('--batch_size', type=int, help='batch_size', default=9)
     parser.add_argument('--num_workers', type=int, help='number of cpu load data', default=8)
-    parser.add_argument('--evaluate_frequently', type=int, help='number of cpu load data', default=200)
-    parser.add_argument('--num_gradient_per_update', type=int, help='number of cpu load data', default=25)
+    parser.add_argument('--evaluate_frequently', type=int, help='number of cpu load data', default=180)
+    parser.add_argument('--num_gradient_per_update', type=int, help='number of cpu load data', default=20)
     parser.add_argument('--fintuning',type = int, default = -1)
   
     args = parser.parse_args()
     root = args.root
-    
+    in_channles = args.in_channles
     model_name = args.model_name
   
     n_frames = args.n_frames
@@ -325,7 +329,8 @@ if __name__ == "__main__":
     print(f"Evaluate frequently: {evaluate_frequently}")
     print(f"Num gradient per update: {num_gradient_per_update}")
     
-    name = f"{model_name}-{n_frames}"
+    # name = f"{model_name}-{n_frames}"
+    name = 'test_heatmap'
     elog = ev.Eval(run_name=name)
     
     run(
@@ -346,5 +351,6 @@ if __name__ == "__main__":
         learnig_scheduler_gammar = learnig_scheduler_gammar,
         learnig_scheduler_step = learnig_scheduler_step,
         num_keypoints = args.num_keypoints,
-        fintuning = args.fintuning
+        fintuning = args.fintuning,
+        in_channles = in_channles
         )

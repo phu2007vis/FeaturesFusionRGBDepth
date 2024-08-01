@@ -150,136 +150,32 @@ def run(
     dataloaders = {'train': train_dl, 'val': val_dl, 'test': test_dl}
     num_classes = len(dataset.get_classes())
 
-    
-    #turn on this for visualize
-    # visualize_pose(train_dl,"visualize",percent_visualize=0.5)
-    # exit()
-    # visualize_rgb(train_dl,"visualize",percent_visualize=0.2)
-    # exit()
+  
   
 
     model = get_model(model_name,num_classes,num_keypoints = num_keypoints,n_frames = n_frames,**kwargs)
     model.to(device)
+    
     if len(pretrained_path):
         model_state_dict= torch.load(pretrained_path,map_location=device)
         model.load_state_dict(model_state_dict)
  
-    print(f"Train on {device}")
-    print(f"Model name {model_name} ")
-    
-    lr = init_lr
-    optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=0.0000001)
-    
-    # learning_scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=learnig_scheduler_gammar)
 
- 
-    steps = 0
-    train_loss = []
-    valid_loss = []
-    best_valid_loss = 99999
-    for epoch in range(max_steps):#for epoch in range(num_epochs):
-        # Each epoch has a training and validation phase
-        for phase in ['train','val']:
-            
-            if phase == 'train':
-                #get current learning rate
-                lr = optimizer.param_groups[0]['lr']
-                optimizer.zero_grad()
-                model.train()
-                
-                #reset parameter
-                tot_loss = 0.0
-                num_iter = 0
-                
-                #create process bar
-                pbar = tqdm(enumerate(dataloaders[phase]),total=len(dataloaders[phase]))
-                
-                for index ,data in pbar:
-                    
-                    num_iter += 1
-                    if model_name != 'lstm':
-                        inputs, labels = data
-                        inputs = inputs.to(device)
-                    else:
-                        x_time,x_spatial ,labels = data
-                        inputs = (x_time.to(device),x_spatial.to(device))
-                
-                    # move to device ('cpu' or 'gpu' - 'cuda' )
-                    if labels.shape[0] !=1:
-                        labels = labels.to(device)
-                     
-                        per_frame_logits = model(inputs)
-                        
-                        #caculate loss
-                        loss = loss_fn(per_frame_logits,labels)/num_gradient_per_update    
-                        
-                        #caculate gradient 
-                        loss.backward()
+    if True:
+        for phase in ['train','val','test']:
 
-                        
-                        #convert to float and add to total loss
-                        tot_loss += loss.data.item()
-                    
-                    # update each num_steps_per_update batch
-                    if num_iter == num_gradient_per_update :
-                        
-                        #update weight
-                        optimizer.step()
-                        optimizer.zero_grad()
-                        
-                        #print to screen
-                        
-                        info  =f"{epoch}/{max_steps} , lr : {lr} , train loss : {tot_loss}" 
-                        pbar.set_description(info)
-                        pbar.set_postfix()
-                        train_loss.append(tot_loss)
-                        elog.add_train_loss(tot_loss)
-                        # reset parameters
-                        num_iter = 0
-                        tot_loss = 0
-                        if (index+1) % evaluate_frequently == 0:
-                            current_valid_loss = evaluate(model,model_name,dataloaders['val'],loss_fn,steps,class_info,ep = epoch,device=device,pbar=False)
-                            valid_loss.append(current_valid_loss)
-                            pbar.set_postfix_str(f"Valid loss: {round(current_valid_loss,2)}")
-                            
-                            if current_valid_loss < best_valid_loss:
-                                torch.save(model.state_dict(),save_model+"best.pt")
-                                best_valid_loss = current_valid_loss
-                                
-                    
-                torch.save(model,save_model+"last.pt")
-                        
-                # if (epoch+1) % learnig_scheduler_step == 0:
-                #     learning_scheduler.step()
-          
-            if phase == 'val':
-                current_valid_loss = evaluate(model,model_name,dataloaders['val'],loss_fn,steps,class_info,ep = epoch,device=device)
-                valid_loss.append(current_valid_loss)
+            if phase == 'test':
+                model.eval()
+                current_valid_loss = evaluate(model,model_name,dataloaders[phase],loss_fn,0,class_info,ep = 0,device=device)
+                print(f"Test loss: ",round(current_valid_loss,2))
                 
-                print(f"Val loss: ",round(current_valid_loss,2))
                 
-                if current_valid_loss < best_valid_loss:
-                    torch.save(model,save_model+"best.pt")
-                    best_valid_loss = current_valid_loss
- 
                
     
     #save model
     torch.save(model.module.state_dict(), save_model+f'last.pt')
     plt.figure(clear=True)
-    plt.plot(train_loss)
-    plt.ylabel("Loss")
-    plt.xlabel("Batch")
-    plt.title("Train loss")
-    plt.savefig(save_model+"train_loss.png")
-    plt.close()
-    plt.figure(clear=True)
-    plt.plot(valid_loss)
-    plt.ylabel("Loss")
-    plt.xlabel("Batch")
-    plt.title("Validation loss")
-    plt.savefig(save_model+"val_loss.png")
-    plt.close()
+
 
 
 
@@ -289,9 +185,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     # model name s3d or i3d
     parser.add_argument("--model_name",type=str,default="i3d",help='i3d or s3d or lstm')
-    parser.add_argument("--pretrained",type=str,default='')
-    parser.add_argument("--device",type=str,default="cuda:3")
-    parser.add_argument('-r', '--root', type=str, help='root directory of the dataset', default=r"/work/21013187/SignLanguageRGBD/ViSLver2/Processed")
+    parser.add_argument("--pretrained",type=str,default='/work/21013187/SignLanguageRGBD/all_code/results/i3d-72/14-13-47-27/i3d-72_best.pt')
+    parser.add_argument("--device",type=str,default="cuda")
+    parser.add_argument('-r', '--root', type=str, help='root directory of the dataset', default=r"/work/21013187/SignLanguageRGBD/data/ver2_all_rgb_only")
     parser.add_argument('--learnig_scheduler_gammar',type=float,default=0.7 ,help='decrease the learning rate by 0.6')
     parser.add_argument('--learnig_scheduler_step',type=int ,default=15)
     parser.add_argument('-n', '--n_frames', type=int, help='n frame', default= 72)
@@ -325,7 +221,7 @@ if __name__ == "__main__":
     print(f"Evaluate frequently: {evaluate_frequently}")
     print(f"Num gradient per update: {num_gradient_per_update}")
     
-    name = f"{model_name}-{n_frames}"
+    name = f"eval_{model_name}-{n_frames}"
     elog = ev.Eval(run_name=name)
     
     run(

@@ -326,23 +326,13 @@ class Generator(torch.utils.data.IterableDataset ):
         #create a list of labels
         labels = self.data_paths['class']
         rgb_batch = self.data_paths['rgb']
-        depth_batch = self.data_paths['depth']
         
         for i in range(start,end):
             path = rgb_batch[i]
-            depth_path = depth_batch[i]
-            depth = np.load(depth_path)
-            depth_resize = torch.from_numpy(resize_array_depth(depth)).float()
+    
             y = labels[i]
             X = np.load(path)
             X_spatial_augumented = self.spatial_transform.transform_fn(X)
-            rgb_time ,depth_time = X_spatial_augumented.shape[0] , depth_resize.shape[0]
-            if  rgb_time > depth_time:
-                X_spatial_augumented = X_spatial_augumented[:depth_time,...]
-            elif rgb_time < depth_time:
-                depth_resize = depth_resize[:rgb_time,...]
-                
-            X_spatial_augumented = torch.cat([X_spatial_augumented,depth_resize],dim = 1)
             X_temperal_augumented = self.temperal_augument.get_augmented_data(X_spatial_augumented).permute(1,0,2,3)
             y = torch.nn.functional.one_hot(torch.tensor(y,dtype= torch.int64),len(self.classes)).float()
             yield X_temperal_augumented, y
