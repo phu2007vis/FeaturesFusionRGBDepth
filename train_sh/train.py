@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from tqdm import tqdm
-import resources.utils.heatmap_dataset as dsl
+import resources.utils.heatmap_dataset_rgb_only as dsl
 import resources.utils.pose_dataset as pose_dsl
 import random
 import datetime
@@ -146,10 +146,10 @@ def run(
 
     test_ds = dataset.get_generator(test_filter,mode = "valid",**kwargs)
     test_dl = torch.utils.data.DataLoader(test_ds, batch_size=batch_size,  num_workers=num_workers, pin_memory=True)
-    
+    import pdb;pdb.set_trace()
     dataloaders = {'train': train_dl, 'val': val_dl, 'test': test_dl}
     num_classes = len(dataset.get_classes())
-
+    
     
     #turn on this for visualize
     # visualize_pose(train_dl,"visualize",percent_visualize=0.5)
@@ -247,7 +247,7 @@ def run(
                                 best_valid_loss = current_valid_loss
                                 
                     
-                torch.save(model,save_model+"last.pt")
+                torch.save(model.state_dict(),save_model+"last.pt")
                         
                 # if (epoch+1) % learnig_scheduler_step == 0:
                 #     learning_scheduler.step()
@@ -259,7 +259,13 @@ def run(
                 print(f"Val loss: ",round(current_valid_loss,2))
                 
                 if current_valid_loss < best_valid_loss:
-                    torch.save(model,save_model+"best.pt")
+                    
+                    torch.save(model.state_dict(),save_model+"best.pt")
+                    cpu_model = model.eval().cpu()
+                    torch_input = input[:1,...]
+                    
+                    onnx_program = torch.onnx.dynamo_export(cpu_model, torch_input)
+                    onnx_program.save("best_onnx_model.onnx")
                     best_valid_loss = current_valid_loss
  
                
@@ -288,7 +294,7 @@ if __name__ == "__main__":
     # need to add argparse
     parser = argparse.ArgumentParser()
     # model name s3d or i3d
-    parser.add_argument("--model_name",type=str,default="i3d",help='i3d or s3d or lstm')
+    parser.add_argument("--model_name",type=str,default="s3d",help='i3d or s3d or lstm')
     parser.add_argument("--pretrained",type=str,default='')
     parser.add_argument("--device",type=str,default="cuda:3")
     parser.add_argument('-r', '--root', type=str, help='root directory of the dataset', default=r"/work/21013187/SignLanguageRGBD/ViSLver2/Processed")
@@ -324,8 +330,8 @@ if __name__ == "__main__":
     
     print(f"Evaluate frequently: {evaluate_frequently}")
     print(f"Num gradient per update: {num_gradient_per_update}")
-    
-    name = f"{model_name}-{n_frames}"
+    name = "heatmap_inference"
+    # name = f"{model_name}-{n_frames}"
     elog = ev.Eval(run_name=name)
     
     run(

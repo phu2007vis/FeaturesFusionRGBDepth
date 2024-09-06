@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from tqdm import tqdm
-import resources.utils.heatmap_dataset as dsl
+import resources.utils.rgb_data_backup as dsl
 import resources.utils.pose_dataset as pose_dsl
 import random
 import datetime
@@ -16,7 +16,7 @@ import logging.handlers
 import matplotlib.pyplot as plt
 from resources.utils import *
 from resources import get_model
-
+from collections import OrderedDict
 
 
 # save infomation during training
@@ -158,8 +158,19 @@ def run(
     
     if len(pretrained_path):
         model_state_dict= torch.load(pretrained_path,map_location=device)
-        model.load_state_dict(model_state_dict)
- 
+        try:
+            model.load_state_dict(model_state_dict)
+        except:
+            new_state_dict = OrderedDict()
+            for key in model_state_dict.keys():
+                new_key = key[8:]
+                
+                
+                value = model_state_dict[key]
+                    # Add the new key with the value
+                new_state_dict[new_key] = value
+            model.load_state_dict(new_state_dict,strict = False)
+              
 
     if True:
         for phase in ['train','val','test']:
@@ -172,9 +183,6 @@ def run(
                 
                
     
-    #save model
-    torch.save(model.module.state_dict(), save_model+f'last.pt')
-    plt.figure(clear=True)
 
 
 
@@ -185,9 +193,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     # model name s3d or i3d
     parser.add_argument("--model_name",type=str,default="i3d",help='i3d or s3d or lstm')
-    parser.add_argument("--pretrained",type=str,default='/work/21013187/SignLanguageRGBD/all_code/results/i3d-72/14-13-47-27/i3d-72_best.pt')
+    parser.add_argument("--pretrained",type=str,default='/work/21013187/SignLanguageRGBD/all_code/results/i3d-72/13-00-00-02/i3d-72_best.pt')
     parser.add_argument("--device",type=str,default="cuda")
-    parser.add_argument('-r', '--root', type=str, help='root directory of the dataset', default=r"/work/21013187/SignLanguageRGBD/data/ver2_all_rgb_only")
+    parser.add_argument('-r', '--root', type=str, help='root directory of the dataset', default=r"/work/21013187/SignLanguageRGBD/ViSLver2/Processed")
     parser.add_argument('--learnig_scheduler_gammar',type=float,default=0.7 ,help='decrease the learning rate by 0.6')
     parser.add_argument('--learnig_scheduler_step',type=int ,default=15)
     parser.add_argument('-n', '--n_frames', type=int, help='n frame', default= 72)

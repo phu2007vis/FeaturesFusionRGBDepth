@@ -168,123 +168,26 @@ def run(
             model.load_state_dict(model_state_dict,strict=False)
             # model = torch.load(pretrained_path)
             model.fintuning_all()
-    # model = nn.DataParallel(model)
-    # model.fintuning_all()
-    print(f"Train on {device}")
+
     print(f"Model name {model_name} ")
     
-    lr = init_lr
-    optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=0.0000001)
-    
-    # learning_scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=learnig_scheduler_gammar)
 
  
     steps = 0
-    train_loss = []
-    valid_loss = []
-    best_valid_loss = 99999
-    for epoch in range(max_steps):#for epoch in range(num_epochs):
+   
+    if True:
         # Each epoch has a training and validation phase
-        for phase in ['train','val']:
-            optimizer.zero_grad()
-            if phase == 'train':
-                if epoch > 100:
-                    model.fintuning_all()
-                lr = optimizer.param_groups[0]['lr']
-                optimizer.zero_grad()
-                model.train()
-                
-                #reset parameter
-                tot_loss = 0.0
-                num_iter = 0
-                
-                #create process bar
-                pbar = tqdm(enumerate(dataloaders[phase]),total=len(dataloaders[phase]))
-                
-                for index ,data in pbar:
-                    
-                    num_iter += 1
-                    inputs, labels = data
-                    labels = labels.to(device)
-                    inputs = inputs.to(device)
-                    
-                    
-                    if model_name not in  ['i3d','lower_fusion']:
-                        rgb = inputs[:,:3,...]
-                        depth = inputs[:,-1:,...]
-                        inputs = (rgb,depth)
-
-                    if labels.shape[0] != 1:
-                        
-                        per_frame_logits = model(inputs)
-                    
-                        loss = loss_fn(per_frame_logits,labels)/num_gradient_per_update    
-                        
-                        #caculate gradient 
-                        loss.backward()
-                        # import pdb;pdb.set_trace()
-                        
-                        #convert to float and add to total loss
-                        tot_loss += loss.data.item()
-                    
-                    # update each num_steps_per_update batch
-                    if num_iter == num_gradient_per_update :
-                        
-                        #update weight
-                        optimizer.step()
-                        optimizer.zero_grad()
-                        
-                        #print to screen
-                        
-                        info  =f"{epoch}/{max_steps} , lr : {lr} , train loss : {tot_loss}" 
-                        pbar.set_description(info)
-                        pbar.set_postfix()
-                        train_loss.append(tot_loss)
-                        elog.add_train_loss(tot_loss)
-                        # reset parameters
-                        num_iter = 0
-                        tot_loss = 0
-                        if (index+1) % evaluate_frequently == 0:
-                            current_valid_loss = evaluate(model,model_name,dataloaders['val'],loss_fn,steps,class_info,ep = epoch,device=device,pbar=False)
-                            valid_loss.append(current_valid_loss)
-                            pbar.set_postfix_str(f"Valid loss: {round(current_valid_loss,2)}")
-                            
-                            if current_valid_loss < best_valid_loss:
-                                torch.save(model,save_model+"best.pt")
-                                best_valid_loss = current_valid_loss           
-                    
-                torch.save(model,save_model+"last.pt")
+        for phase in ['train','test']:
           
-            if phase == 'val':
-                current_valid_loss = evaluate(model,model_name,dataloaders['val'],loss_fn,steps,class_info,ep = epoch,device=device)
-                valid_loss.append(current_valid_loss)
-                
-                print(f"Val loss: ",round(current_valid_loss,2))
-                
-                if current_valid_loss < best_valid_loss:
-                    torch.save(model,save_model+"best.pt")
-                    best_valid_loss = current_valid_loss
+          
+            if phase == 'test':
+                current_valid_loss = evaluate(model,model_name,dataloaders[phase],loss_fn,steps,class_info,ep = 0,device=device)
+              
+              
  
                
     
-    #save model
-    torch.save(model.module.state_dict(), save_model+f'last.pt')
-    plt.figure(clear=True)
-    plt.plot(train_loss)
-    plt.ylabel("Loss")
-    plt.xlabel("Batch")
-    plt.title("Train loss")
-    plt.savefig(save_model+"train_loss.png")
-    plt.close()
-    plt.figure(clear=True)
-    plt.plot(valid_loss)
-    plt.ylabel("Loss")
-    plt.xlabel("Batch")
-    plt.title("Validation loss")
-    plt.savefig(save_model+"val_loss.png")
-    plt.close()
-
-
+  
 
 
 if True:

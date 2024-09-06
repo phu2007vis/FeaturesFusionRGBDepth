@@ -20,6 +20,6 @@ def caculate_maps_all(file_result,file_output = None):
          text = f"{i},{value}\n"
          f.write(text)
 if __name__ == "__main__":
-	data_path = "/work/21013187/SignLanguageRGBD/all_code/results/late_fusion-72/30-07-54-09/val_result.csv"
+	data_path = "/work/21013187/SignLanguageRGBD/all_code/results/eval_i3d-72/01-09-05-36/results.csv"
 	caculate_maps_all(data_path)
 	
