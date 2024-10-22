@@ -14,19 +14,26 @@ def split(a, n):
     return [a[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in list(range(n))]
 
 
-def resize_img(img, short_size=256):
+def resize_img(img, short_size=224):
     h, w, c = img.shape
-    return cv2.resize(img,(short_size,short_size))
-    # if (w <= h and w == short_size) or (h <= w and h == short_size):
-    #     return img
-    # if w < h:
-    #     ow = short_size
-    #     oh = int(short_size * h / w)
-    #     return cv2.resize(img, (ow, oh))
-    # else:
-    #     oh = short_size
-    #     ow = int(short_size * w / h)
-    #     return cv2.resize(img, (ow, oh))
+    if w > h:
+        w = short_size
+        h = int(short_size * h / w)
+    else:
+        h = short_size
+        w = int(short_size * w / h)
+    
+    img = cv2.resize(img, (w, h))
+    
+    # Create a square black canvas
+    square_img = np.zeros((short_size, short_size, c), dtype=img.dtype)
+    
+    # Center the resized image on the black canvas
+    y_offset = (short_size - h) // 2
+    x_offset = (short_size - w) // 2
+    square_img[y_offset:y_offset+h, x_offset:x_offset+w] = img
+    
+    return square_img
 
 
 def video_loader(video_path, short_size = 224):
