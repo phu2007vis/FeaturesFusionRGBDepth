@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from tqdm import tqdm
-import resources.utils.heatmap_dataset_rgb_only as dsl
+import resources.utils.rgb_data_backup as dsl
 import resources.utils.pose_dataset as pose_dsl
 import random
 import datetime
