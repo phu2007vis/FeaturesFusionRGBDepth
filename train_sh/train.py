@@ -139,14 +139,14 @@ def run(
             spatial_augument = None
         
     train_ds = dataset.get_generator(train_filter,mode = "train",spatial_augument = spatial_augument,**kwargs)
-    train_dl = torch.utils.data.DataLoader(train_ds, batch_size=batch_size,  num_workers=num_workers, pin_memory=True)
+    train_dl = torch.utils.data.DataLoader(train_ds, batch_size=batch_size,  num_workers=num_workers, pin_memory=True,drop_last = True)
 
     val_ds = dataset.get_generator(val_filter,mode = "valid",**kwargs)
-    val_dl = torch.utils.data.DataLoader(val_ds, batch_size=batch_size,  num_workers=num_workers, pin_memory=True)
+    val_dl = torch.utils.data.DataLoader(val_ds, batch_size=batch_size,  num_workers=num_workers, pin_memory=True,drop_last = True)
 
     test_ds = dataset.get_generator(test_filter,mode = "valid",**kwargs)
-    test_dl = torch.utils.data.DataLoader(test_ds, batch_size=batch_size,  num_workers=num_workers, pin_memory=True)
-    import pdb;pdb.set_trace()
+    test_dl = torch.utils.data.DataLoader(test_ds, batch_size=batch_size,  num_workers=num_workers, pin_memory=True,drop_last = True)
+    
     dataloaders = {'train': train_dl, 'val': val_dl, 'test': test_dl}
     num_classes = len(dataset.get_classes())
     

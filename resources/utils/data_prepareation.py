@@ -15,24 +15,24 @@ def split(a, n):
 
 
 def resize_img(img, short_size=224):
-    h, w, c = img.shape
-    if w > h:
-        w = short_size
-        h = int(short_size * h / w)
-    else:
-        h = short_size
-        w = int(short_size * w / h)
+    # h, w, c = img.shape
+    # if w > h:
+    #     w = short_size
+    #     h = int(short_size * h / w)
+    # else:
+    #     h = short_size
+    #     w = int(short_size * w / h)
     
-    img = cv2.resize(img, (w, h))
+    # img = cv2.resize(img, (w, h))
     
-    # Create a square black canvas
-    square_img = np.zeros((short_size, short_size, c), dtype=img.dtype)
+    # # Create a square black canvas
+    # square_img = np.zeros((short_size, short_size, c), dtype=img.dtype)
     
-    # Center the resized image on the black canvas
-    y_offset = (short_size - h) // 2
-    x_offset = (short_size - w) // 2
-    square_img[y_offset:y_offset+h, x_offset:x_offset+w] = img
-    
+    # # Center the resized image on the black canvas
+    # y_offset = (short_size - h) // 2
+    # x_offset = (short_size - w) // 2
+    # square_img[y_offset:y_offset+h, x_offset:x_offset+w] = img
+    return cv2.resize(img,(short_size,short_size))
     return square_img
 
 
